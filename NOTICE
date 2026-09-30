@@ -1,0 +1,12 @@
+time-witness
+Copyright (c) 2026 Parth Mauria Saxena
+
+Licensed under the Apache License, Version 2.0.
+See LICENSE for the full text.
+
+--------------------------------------------------------------------------
+
+UBX message layouts were cross-checked against pyubx2 (BSD-3-Clause,
+Copyright (c) semuadmin / Steve Smith). No pyubx2 code is included; five
+frames it serialised are pinned as test data in tests/test_ubx.py. Details and
+commit in docs/SOURCES.md.

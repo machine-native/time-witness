@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "time-witness"
+version = "0.1.0.dev0"
+description = "Hardware time witness: raw GNSS and oscillator evidence as a chronology-protocol witness profile"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+# The observation model, canonical CBOR and digests are chronology-protocol's.
+# It is not on PyPI: install it from its repository, or keep a sibling checkout at
+# ../chronology-protocol (tests/conftest.py finds it there).
+dependencies = []
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+capture = ["pyserial"]
+
+[tool.setuptools]
+packages = ["tw"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
