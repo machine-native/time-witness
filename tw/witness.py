@@ -52,12 +52,14 @@ from .timescale import (PS, PS_PER_MS, PS_PER_NS, day_origin, frame_for_origin,
 BLOB_TYPE = "TW-GNSS/v1"
 PROFILE_TYPE = "TW-DEVICE/v1"
 # Frames that corroborate but do not enter the time derivation. Raw Galileo pages
-# (RXM-SFRBX) are kept for an offline OSNMA verifier (SPEC §10).
+# (RXM-SFRBX) carry the OSNMA material that tw.osnma verifies (SPEC §10).
 PASSIVE = {ubx.RXM_SFRBX, ubx.SEC_OSNMA}
 NAV_SANITY_PS = 2 * PS
 
-# auth_state vocabulary. None of these asserts OSNMA verification: that value is
-# reserved until an offline verifier exists (VERIFIED_OSNMA, SPEC §10).
+# auth_state vocabulary. No timing source can be VERIFIED_OSNMA: OSNMA authenticates
+# navigation data, never signal arrival time. What OSNMA does prove offline is a
+# separate claim, a lower causal bound (tw.osnma, SPEC §10); the constant is kept only
+# so the verifier can name and reject the state if an observation claims it.
 AUTH_RECEIVER = "RECEIVER_ASSERTED"
 AUTH_OSNMA_REPORTED = "RECEIVER_ASSERTED_OSNMA_REPORTED"
 AUTH_SPOOF = "RECEIVER_ASSERTED_SPOOFING_INDICATED"

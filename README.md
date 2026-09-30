@@ -25,8 +25,13 @@ is different in two ways:
    recomputes every number in the observation. A claim that is wider *or* narrower
    than the evidence supports fails.
 
-It also carries raw Galileo navigation pages, reserved for an offline OSNMA
-verifier that does not exist yet (SPEC §10).
+It also verifies **Galileo OSNMA offline** (SPEC §10): from raw navigation pages it
+checks the public key against Galileo's Merkle root, the signed chain root, and each
+TESLA key back to it. A verified key is bound to its own 30-second sub-frame and was
+secret until then, so evidence containing one is no older than that sub-frame: a
+lower bound on time that comes from the Galileo constellation, not from any server.
+It reproduces every value in the official worked examples and passes all 18
+official test vectors.
 
 ## Try it
 
@@ -34,9 +39,13 @@ Requires Python 3.10+ and a chronology-protocol checkout (installed, or cloned a
 sibling directory `../chronology-protocol`). No other dependencies.
 
 ```bash
-python -m pytest -q                          # zero failures is the result; synthetic frames only
+python scripts/fetch_osnma_vectors.py        # official OSNMA vectors, digest-checked (optional)
+python -m pytest -q                          # zero failures is the result
 python scripts/make_synthetic_vectors.py     # regenerates vectors/synthetic/ identically
 ```
+
+The `openssl` command is needed for ECDSA. Without the fetched vectors, the tests
+that need them report SKIPPED rather than passing.
 
 `vectors/synthetic/` holds four cases — a receiver pulse, an oscillator anchor, an
 honest follow-up, and one with GNSS delayed by 50 µs — each with its expected
@@ -54,6 +63,7 @@ evidence: chronology-protocol's invariant 14 applies.
 | `tw/holdover.py` | the oscillator drift bound and edge counting |
 | `tw/witness.py` | evidence blob, deterministic derivation, chronology-protocol observation |
 | `tw/verify.py` | offline verifier: PASS / FAIL / INDETERMINATE |
+| `tw/osnma.py` | offline Galileo OSNMA verifier and the lower bound it supports |
 | `scripts/capture_ubx.py` | raw serial capture with host monotonic times (not hardware-tested) |
 | `docs/HARDWARE.md` | reference architecture and what each part must prove before purchase |
 | `docs/SOURCES.md` | every external fact, its source, and how it was cross-checked |
@@ -69,9 +79,13 @@ evidence blobs; that change belongs in chronology-protocol.
 ## Not yet done
 
 - No hardware capture. UBX layouts are cross-checked against an independent
-  implementation (pyubx2), not yet against a receiver.
-- No OSNMA verification. A receiver's OSNMA report is recorded as the receiver's
-  claim; `VERIFIED_OSNMA` is reserved and never emitted.
+  implementation (pyubx2), not yet against a receiver, and the mapping from a
+  receiver's raw-subframe output to I/NAV pages is not yet pinned.
+- The Galileo lower bound is computed but not yet carried into a chronology-protocol
+  sandwich; that change belongs to chronology-protocol.
+- OSNMA tags are checked for consistency only: a recording cannot show it was
+  received before the keys were disclosed, so navigation data is never called
+  authenticated. A receiver's own OSNMA report is recorded as the receiver's claim.
 - Device profile values are declarations. No oscillator has been characterised.
 
 ## Licence

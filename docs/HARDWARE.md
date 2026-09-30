@@ -35,6 +35,19 @@ The first row decides the rest: if no affordable receiver exposes raw
 Galileo pages, the OSNMA evidence of SPEC §10 cannot be produced by it, and the
 appliance would be a better-instrumented clock rather than a new witness class.
 
+The verifier needs the **raw pages**, not the receiver's own OSNMA verdict. A
+receiver that verifies OSNMA internally but will not output the pages is no use to
+it; a receiver that outputs the pages but does no OSNMA itself is enough.
+
+EUSPA's list of receivers implementing OSNMA (gsc-europa.eu, "Receivers
+implementing Galileo OSNMA", read 2026-09-30) includes, among others, the u-blox
+ZED-F9P, NEO-M9L and ZED-X20 series; the Septentrio mosaic G5 T (timing) and
+mosaic-X5; Furuno GF-10x and GT-series timing receivers; and the Quectel LC99T
+(timing). EUSPA states that the list is manufacturer-supplied and unverified. Being
+on it says nothing about raw-page output, which must be confirmed separately for
+any candidate: for u-blox, whether RXM-SFRBX carries complete Galileo E1-B I/NAV
+pages including the OSNMA field; for Septentrio, the equivalent raw I/NAV block.
+
 ## Bring-up order
 
 1. Receiver alone, mode `PPS`: capture, confirm every layout in docs/SOURCES.md

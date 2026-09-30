@@ -4,9 +4,8 @@ Three outcomes, never two, as in chronology-protocol:
 
   PASS           every claim in the observation re-derives exactly from the bytes
   FAIL           something re-derived differently, or the bytes are malformed
-  INDETERMINATE  a check could not be run (an anchor blob was not supplied, or the
-                 observation claims OSNMA verification, which this verifier cannot
-                 yet perform). Unable to check is not the same as checked and failed.
+  INDETERMINATE  a check could not be run (an anchor blob was not supplied). Unable
+                 to check is not the same as checked and failed.
 
 What PASS means, precisely: the observation says what its evidence says. It does
 NOT mean the receiver told the truth, that GNSS was not spoofed, or that the
@@ -75,9 +74,10 @@ def verify_observation(obs: UnsignedObservation, blob: bytes,
         facts.update(mode=d["mode"], system=d["system"], consistency=d["consistency"],
                      receiver=d["receiver"])
 
-    # The one authentication claim this verifier cannot yet check.
+    # OSNMA authenticates navigation data, not when a signal arrived, so no timing
+    # source can honestly claim it. This is a definite failure, not an unknown.
     if any(s.auth_state == AUTH_OSNMA_VERIFIED for s in obs.sources):
-        checks["TW_OSNMA"] = UNAVAILABLE
+        checks["TW_NO_OSNMA_TIMING_CLAIM"] = False
 
     # A check that ran and failed is known; one that could not run is not. So a
     # definite failure outranks an unavailable check, and only a bundle with no

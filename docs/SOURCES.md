@@ -37,13 +37,57 @@ was checked. Nothing here is taken from a single source where a second exists.
 
 - European GNSS Service Centre, *Galileo Open Service Navigation Message
   Authentication*: https://www.gsc-europa.eu/galileo/services/galileo-open-service-navigation-message-authentication-osnma
-- OSNMA receiver guidelines v1.1: time synchronisation requirement `T_L` = 30 s
-  (as reported by the sources above; the guideline document itself is to be pinned
-  by version before any OSNMA code is written).
+- OSNMA receiver guidelines: time synchronisation requirement 30 s (first seen as
+  reported by the sources above; now pinned below in Issue 1.3).
 - H. Wang, Y. Zhang, Y. Tan, J. He, S. Zhao, N. Xi, Y. Shen, *Practical Spoofing
   Attacks against Galileo OSNMA with Time-Synchronization Manipulation*,
   arXiv:2501.09246 (2025). Replay, forgery and dual-frequency attacks passing OSNMA
   on two commercial and two SDR receivers by manipulating the local reference time
   within the synchronisation requirement.
-- The OSNMA SIS ICD and its official test vectors will be recorded here, by version
-  and digest, before any OSNMA verification code is written.
+
+## Documents `tw/osnma.py` implements (all fetched 2026-09-30 from gsc-europa.eu)
+
+Each was the "in force" version on the GSC reference-document pages that day.
+
+| document | sha256 |
+|---|---|
+| Galileo OSNMA SIS ICD, Issue 1.1, October 2023 (`Galileo-OSNMA-SIS-ICD_in_force.pdf`, byte-identical to `Galileo_OSNMA_SIS_ICD_v1.1.pdf`) | `0f8e385af744924cd64cea476684d399f63af0d65384d368b0765ea94d6176c3` |
+| Galileo OSNMA Receiver Guidelines, Issue 1.3, January 2024 (`Galileo-OSNMA-RX-Guidelines_in_force.pdf`) | `4b005862f5d1fbb53e9f51ae3f182cee1c7b890ea8236578669b56abc7d3b651` |
+| Galileo OS SIS ICD, Issue 2.2, November 2025 (`Galileo_OS_SIS_ICD_in_force.pdf`) | `1ca51b26c970140d2a5fd932fdf6086e5dcf945cbe216ccb081c300136504671` |
+| OSNMA test vectors, Receiver Guidelines 1.3 Annex B (`Test_vectors.zip`) | `ef9b9afc6ef9e1c57393415cf2a1dc80c4035e7c06123907ea0bb97dd3ccf370` |
+
+How each part was checked:
+
+- **Field layouts** (NMA header, DSM header, DSM-KROOT, DSM-PKR, MACK, Tag-Info) and
+  the equations for the signature message, the chain step, MACSEQ and tags were read
+  from the rendered pages of the OSNMA SIS ICD. The text layer loses both figures
+  and symbols, so nothing was taken from extracted text alone.
+- **I/NAV page and word layouts** (word types 1-6, 10) and the CRC were read from
+  OS SIS ICD Issue 2.2 and are unchanged from Issue 2.1. The CRC generator is given
+  factored, as (1 + X)P(X); expanded in `tests/test_osnma.py` it equals the CRC-24Q
+  polynomial `0x1864CFB`. Its coverage (even part bits 0-113, odd part bits 0-81)
+  was confirmed on every page of the official vectors tested.
+- **Word type 5 TOW** is the start time of the page carrying it: established on the
+  official vectors, not assumed.
+- **Worked examples**: every value in Receiver Guidelines Annex A (DSM-PKR and
+  Merkle path, DSM-KROOT, ECDSA signature, PDK, PDP, TESLA chain steps, MACK, MACSEQ,
+  Tag0, ADKD 4) reproduces exactly; the values are quoted in `tests/test_osnma.py`.
+- **Official vectors**: all 18 Annex B scenarios verify with zero key failures and
+  zero tag, MACSEQ or MACLT mismatches; P-256 and P-521 signatures both verify.
+  Expected counts per scenario are pinned in `tests/test_osnma.py`.
+
+Two things found in the official material, recorded so nobody rediscovers them:
+
+- Receiver Guidelines 1.3, Annex A.5.1, prints key index 2's time of week as
+  `34630`. The sub-frame sequence and A.5.2 make it `345630`, which is what verifies.
+- The Annex B vectors include a satellite transmitting only dummy words (type 63)
+  whose OSNMA field is nevertheless non-zero. The OSNMA SIS ICD section 2 requires
+  data in dummy pages to be discarded; `tw/osnma.py` does, and did not before the
+  vectors showed it.
+
+Terms: the OSNMA SIS ICD's Annex E is a royalty-free covenant not to assert the
+listed rights against software products that use the signal, provided the source is
+acknowledged and no endorsement by the EU is stated or implied. None is. The
+Receiver Guidelines and their test vectors may not be altered, so they are not
+redistributed here: `scripts/fetch_osnma_vectors.py` downloads the vectors from the
+GSC and refuses any bytes whose digest differs from the one above.

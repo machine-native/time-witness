@@ -136,7 +136,7 @@ about the world, not a verification failure — the analogue of `TIME_CONFLICT`.
 | `RECEIVER_ASSERTED_OSNMA_REPORTED` | Galileo time frame, receiver says OSNMA is enabled (SEC-OSNMA); **not verified** |
 | `RECEIVER_ASSERTED_SPOOFING_INDICATED` | NAV-STATUS `spoofDetState` ≥ 2 |
 | `LOCAL_OSCILLATOR_MODEL` | holdover prediction under the declared profile |
-| `VERIFIED_OSNMA` | **reserved** for an offline OSNMA verifier (§10); never emitted by v1 |
+| `VERIFIED_OSNMA` | **invalid** for any timing source: OSNMA authenticates navigation data, never signal arrival time. An observation claiming it fails. What OSNMA does prove is a separate claim (§10) |
 
 ## 8. Observation mapping
 
@@ -158,22 +158,71 @@ supports fails like a narrower one: the claim must be what the evidence says.
 |---|---|
 | `PASS` | every check ran and matched |
 | `FAIL` | any check ran and did not match, or the blob is malformed |
-| `INDETERMINATE` | no failures, but a check could not run: anchor blob not supplied, or a `VERIFIED_OSNMA` claim |
+| `INDETERMINATE` | no failures, but a check could not run: anchor blob not supplied |
 
-## 10. Reserved: Galileo as a lower causal bound (NOT IMPLEMENTED)
+## 10. Galileo as a lower causal bound
 
-OSNMA discloses a TESLA chain key in each 30 s subframe. A key is secret until
-disclosed and verifiable back to a root that Galileo signs. Evidence containing a
-verified key was therefore acquired after that key's disclosure time — a lower
-bound supplied by a party unconnected to this project.
+Implemented in `tw/osnma.py` against the Galileo OSNMA SIS ICD Issue 1.1, the OS
+SIS ICD Issue 2.2 page and word layouts, the OSNMA Receiver Guidelines Issue 1.3
+Annex A worked examples, and all 18 of its Annex B official test vectors
+(docs/SOURCES.md). Input is raw E1-B I/NAV pages (240 bits each: even part, odd
+part), from any number of satellites.
 
-The raw material rides in blob key 4 as RXM-SFRBX frames. The verifier that turns
-it into a claim (TESLA chain to KROOT, KROOT's ECDSA signature, the public-key
-Merkle tree, MACK tag checks) will be implemented against the official OSNMA ICD
-test vectors, not from memory, and until it is, no observation claims it.
+### 10.1 What verifies offline
+
+| step | checked against | property |
+|---|---|---|
+| page CRC-24Q | the page itself | pages are received as transmitted |
+| public key | a Merkle root obtained out of band (GSC OSNMA server), via the DSM-PKR or a GSC key file | the key is Galileo's |
+| DSM-KROOT | that key's ECDSA signature (P-256/SHA-256 or P-521/SHA-512), over the NMA header and chain parameters | chain parameters and GST0 are Galileo's |
+| TESLA key | hashing back to KROOT; every step includes the GST of its sub-frame | the key belongs to exactly one sub-frame time |
+
+A TESLA key is secret until Galileo broadcasts it. So bytes that contain a verified
+key were assembled no earlier than the start of that key's sub-frame. That is the
+claim, `GALILEO-TESLA-LOWER-BOUND/v1`, stated in GST at the start of the sub-frame
+of the latest usable key (`tw.osnma.galileo_lower_bound`). The key's bits arrive
+over the sub-frame's 30 s; nothing tighter than the sub-frame start is claimed.
+
+### 10.2 Keys that verify but do not count
+
+A key is **usable** for the bound only if its secrecy until disclosure can still be
+assumed. Verified keys are excluded, with the reason recorded, when:
+
+| reason | condition (NMA header, OSNMA SIS ICD §3.1, §5.4–5.7) |
+|---|---|
+| `DONT_USE` | broadcast under NMAS = Don't Use |
+| `CHAIN_REVOKED` | its chain is revoked anywhere in the recording (CPKS = CREV) — including keys from before the revocation |
+| `PUBLIC_KEY_REVOKED` | the public key that signed its chain is revoked (CPKS = PKREV) |
+| `AFTER_ALERT` | at or after a verified OSNMA Alert Message |
+
+Excluding a revoked chain's earlier keys is deliberate: revocation means the keys
+may have been known before their disclosure, which is precisely what a time bound
+cannot tolerate. Revocations published **after** the recording cannot be seen in
+its bytes; the bound is stated as conditional on the chain not having been revoked
+later, and a verifier checks that against the GSC's published status.
+
+### 10.3 What does not verify offline
+
+Tags authenticate navigation data only if the data was received **before** the key
+that checks it was disclosed — TESLA's time-synchronisation assumption. A recording
+does not show when it was received. Tags and MACSEQ that match are therefore
+reported as `TAG_CONSISTENT` / `MACSEQ_CONSISTENT`: integrity of the recording, not
+authenticity of its navigation data. In particular the broadcast leap-second count
+(word type 6, ADKD 4) is consistent, not authenticated, when checked after the fact.
+
+### 10.4 Not yet connected
+
+- **Receiver bytes.** How a receiver's raw-subframe output (UBX-RXM-SFRBX for
+  Galileo I/NAV) maps onto the 240-bit page is to be pinned against a real
+  receiver; until then the verifier's input is the page stream itself.
+- **The sandwich.** A lower bound from Galileo is the same shape of claim as the
+  sandwich's lower bread (§11), and belongs there rather than in an observation
+  interval, which must be two-sided.
+- **Trust anchor.** The operational Merkle root is obtained from the GSC OSNMA
+  server; this repository ships none, and every use must name the root it used.
 
 ## 11. Relation to the sandwich verifier
 
 chronology-protocol's `verify_sandwich` does not yet recognise `TW-GNSS/v1` blobs
-and would reject a bundle containing one. Teaching it is a change to
-chronology-protocol, made there.
+or `GALILEO-TESLA-LOWER-BOUND/v1` claims and would reject a bundle containing one.
+Teaching it is a change to chronology-protocol, made there.

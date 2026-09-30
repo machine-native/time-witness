@@ -244,17 +244,16 @@ def test_missing_anchor_is_indeterminate_not_fail():
     assert verdict == "INDETERMINATE"
 
 
-def test_an_osnma_verified_claim_is_flagged_and_fails_today():
+def test_an_osnma_verified_timing_claim_is_rejected():
     blob = pps_blob()
     u = _obs(blob)
     s = u.sources[0]
     u.sources = [SourceObservation(s.source_type, s.claimed_ps, s.uncertainty_ps,
                                    AUTH_OSNMA_VERIFIED, s.evidence)]
     checks, verdict, _ = verify_observation(u, blob)
-    # The OSNMA check cannot run yet, and says so. But derive never emits that
-    # state, so the claim also fails re-derivation — a definite failure, which
-    # outranks the unavailable check.
-    assert checks["TW_OSNMA"] == "UNAVAILABLE"
+    # OSNMA authenticates navigation data, never arrival time: the claim is false
+    # on its face, and it also fails re-derivation.
+    assert checks["TW_NO_OSNMA_TIMING_CLAIM"] is False
     assert checks["TW_SOURCES_REDERIVED"] is False and verdict == "FAIL"
 
 
