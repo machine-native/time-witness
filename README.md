@@ -31,7 +31,10 @@ TESLA key back to it. A verified key is bound to its own 30-second sub-frame and
 secret until then, so evidence containing one is no older than that sub-frame: a
 lower bound on time that comes from the Galileo constellation, not from any server.
 It reproduces every value in the official worked examples and passes all 18
-official test vectors.
+official test vectors. The Merkle root it rests on is itself authenticated through
+the EUSPA PKI (certificate chain, CRLs, signature, pinned root), and the whole
+capture can travel inside the evidence, so the bound re-derives from the bytes of a
+chronology-protocol sandwich (SPEC §10.5, §11).
 
 ## Try it
 
@@ -64,6 +67,9 @@ evidence: chronology-protocol's invariant 14 applies.
 | `tw/witness.py` | evidence blob, deterministic derivation, chronology-protocol observation |
 | `tw/verify.py` | offline verifier: PASS / FAIL / INDETERMINATE |
 | `tw/osnma.py` | offline Galileo OSNMA verifier and the lower bound it supports |
+| `tw/gsc_pki.py` | authenticates the OSNMA Merkle tree through the EUSPA PKI |
+| `tw/ubx_inav.py` | Galileo E1-B pages out of u-blox RXM-SFRBX, timed from the navigation data |
+| `tw/sandwich_ext.py` | the chronology-protocol sandwich extension for this profile |
 | `scripts/capture_ubx.py` | raw serial capture with host monotonic times (not hardware-tested) |
 | `docs/HARDWARE.md` | reference architecture and what each part must prove before purchase |
 | `docs/SOURCES.md` | every external fact, its source, and how it was cross-checked |
@@ -81,8 +87,9 @@ evidence blobs; that change belongs in chronology-protocol.
 - No hardware capture. UBX layouts are cross-checked against an independent
   implementation (pyubx2), not yet against a receiver, and the mapping from a
   receiver's raw-subframe output to I/NAV pages is not yet pinned.
-- The Galileo lower bound is computed but not yet carried into a chronology-protocol
-  sandwich; that change belongs to chronology-protocol.
+- The operational Merkle tree has not been downloaded: it is published to
+  registered GSC users. `scripts/authenticate_merkle_tree.py` authenticates it
+  once it is.
 - OSNMA tags are checked for consistency only: a recording cannot show it was
   received before the keys were disclosed, so navigation data is never called
   authenticated. A receiver's own OSNMA report is recorded as the receiver's claim.

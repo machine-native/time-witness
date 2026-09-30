@@ -85,6 +85,24 @@ Two things found in the official material, recorded so nobody rediscovers them:
   data in dummy pages to be discarded; `tw/osnma.py` does, and did not before the
   vectors showed it.
 
+## Trust anchor and receiver mapping (fetched 2026-09-30)
+
+| item | source | sha256 |
+|---|---|---|
+| Galileo OSNMA IDD ICD, Issue 1.1, January 2024 | gsc-europa.eu | `fdac67715901f7b8ace211658e61251478106a1a3261b2bd62032dfc46b93679` |
+| EUSPA Root CA `rca_001_01.crt` (pinned by DER fingerprint `63AE2D3E…E933D4`) | https://pki.euspa.europa.eu | stored PEM `883614859b421a59988d0ec72a464164ea32a8b587df5b59a0949b5694d5c6e1` |
+| EUSPA Galileo SCA `sca_001_01.crt` | http://pki.euspa.europa.eu | `f6e91a4639672f14975f84bf27b027e31b48fe0f60ec7010badc4a5a7bda9376` |
+| EUSPA OSNMA ICA `ica_001_01.crt` | gsc-europa.eu gsc-products/pki path | `ce618fa2df142021cea644d5d46ccb437807ff29b3ebc9ed97dd2ee5b43838b1` |
+| CRLs of the three | same | in `trust/euspa/`; re-fetched by `scripts/refresh_euspa_pki.py` |
+| galmon `ubx.cc` (SFRBX -> I/NAV page), commit `9bd224369b45e440424980b769fe3feb2d654f33` | github.com/berthubert/galmon | `61a690298c49faff685de13ee8303fd22502009206d574c57d11c5c4074e4553` |
+| u-blox ZED-F9P Interface Description UBX-18010854 R04 (UBX 27.00), "Signal Identifiers": Galileo E1 B = gnssId 2, sigId 1 | copy hosted by SparkFun | `8d088b6109569dca5ef23c883f21d8f5a48507095bb4699ad49b442abf0f4af9` |
+
+The operational chain Root -> SCA -> ICA verifies with all three CRLs
+(`tests/test_gsc_pki.py`). The test-phase Merkle trees in the official vectors are
+signed validly, but their bundled ICA is self-issued and does not chain to the
+test-phase root; the verifier refuses them for that reason. The end-to-end test
+therefore signs the official tree file with a PKI it makes and labels itself.
+
 Terms: the OSNMA SIS ICD's Annex E is a royalty-free covenant not to assert the
 listed rights against software products that use the signal, provided the source is
 acknowledged and no endorsement by the EU is stated or implied. None is. The

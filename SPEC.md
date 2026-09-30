@@ -210,19 +210,64 @@ reported as `TAG_CONSISTENT` / `MACSEQ_CONSISTENT`: integrity of the recording, 
 authenticity of its navigation data. In particular the broadcast leap-second count
 (word type 6, ADKD 4) is consistent, not authenticated, when checked after the fact.
 
-### 10.4 Not yet connected
+### 10.4 The trust anchor
 
-- **Receiver bytes.** How a receiver's raw-subframe output (UBX-RXM-SFRBX for
-  Galileo I/NAV) maps onto the 240-bit page is to be pinned against a real
-  receiver; until then the verifier's input is the page stream itself.
-- **The sandwich.** A lower bound from Galileo is the same shape of claim as the
-  sandwich's lower bread (§11), and belongs there rather than in an observation
-  interval, which must be two-sided.
-- **Trust anchor.** The operational Merkle root is obtained from the GSC OSNMA
-  server; this repository ships none, and every use must name the root it used.
+The Merkle root is the only OSNMA input the satellites do not broadcast. The GSC
+publishes the Merkle-tree file to registered users (OSNMA IDD ICD 1.1, §3). It is
+authenticated as that ICD asks of manufacturers (§4.3), by `tw.gsc_pki`:
+
+1. the end-entity certificate chains to the EUSPA Root CA through the Galileo SCA
+   and the OSNMA ICA, every certificate checked against its issuer's CRL;
+2. the end-entity certificate is the Merkle-tree role;
+3. its ECDSA P-256/SHA-256 signature covers the tree file byte for byte;
+4. the Root CA matches the SHA-256 fingerprint pinned in `tw/gsc_pki.py`.
+
+The Root CA is self-signed: its pin is trust on first use of
+`pki.euspa.europa.eu`, recorded so that later substitution is caught, and should be
+compared through a second channel by anyone relying on it. Everything above the
+tree except that pin is public (`scripts/refresh_euspa_pki.py`); the tree itself is
+authenticated and recorded by `scripts/authenticate_merkle_tree.py`.
+
+### 10.5 In the evidence blob
+
+A blob may carry a Galileo capture (key 13: raw UBX-RXM-SFRBX frames with the host
+monotonic time each arrived) and the trust-anchor material (key 14: the tree file,
+its signature, the end-entity and ICA bundle, the Root and SCA certificates, the
+CRLs). `tw.witness.galileo_facts` re-derives from those bytes alone — with only the
+Root CA fingerprint trusted from outside — the pages, their times, the
+authentication of the anchor at the capture's own time, every OSNMA check, and the
+bound. The facts are reported with the observation; they are not part of its
+interval, which must be two-sided.
+
+Page extraction and timing are in `tw/ubx_inav.py`: Galileo E1-B is gnssId 2,
+sigId 1; words 0–3 and 4–7 carry the even and odd page parts (the mapping galmon
+uses with u-blox receivers); each satellite's pages are timed from its own word-5
+WN/TOW and placed 2 s apart by arrival time. Pages are CRC-checked, and a page
+placed at the wrong time makes its key fail, so errors here fail closed.
+
+**A capture must contain a complete DSM-KROOT**, or no key has anything to chain
+to. Usually that is a few minutes of sky; in the half hour after 00:00, 06:00,
+12:00 and 18:00 GST, when the public key is broadcast instead, it takes longer. The
+official configuration-2 vector needs 6.5 minutes.
+
+### 10.6 Not yet done
+
+- The SFRBX mapping is independently confirmed (galmon) but not yet pinned against
+  bytes from our own receiver.
+- The operational Merkle tree has not been downloaded and authenticated: that needs
+  a registered GSC account.
 
 ## 11. Relation to the sandwich verifier
 
-chronology-protocol's `verify_sandwich` does not yet recognise `TW-GNSS/v1` blobs
-or `GALILEO-TESLA-LOWER-BOUND/v1` claims and would reject a bundle containing one.
-Teaching it is a change to chronology-protocol, made there.
+chronology-protocol's `verify_sandwich` accepts extensions for evidence types it
+does not implement (its `docs/REALITY-SANDWICH.md` §4b). `tw.sandwich_ext.EXTENSIONS`
+is that extension for `TW-GNSS/v1`:
+
+    python scripts/verify_sandwich.py BUNDLE.cbor --extension tw.sandwich_ext:EXTENSIONS
+
+chronology-protocol checks the blob's binding to the session, the signatures, the
+chain, the checkpoint and the blocks; the extension checks the observation against
+its frames and reports the Galileo facts, including any
+`GALILEO-TESLA-LOWER-BOUND/v1`, under `extensions` in the sandwich's facts. Without
+the extension the bundle is `INDETERMINATE_UNCHECKED_EVIDENCE`, never a pass.
+`tests/test_sandwich_e2e.py` runs this end to end on official Galileo data.

@@ -42,12 +42,15 @@ def _pem_certs(b: bytes) -> list[bytes]:
 
 def _to_pem(b: bytes, kind: str) -> bytes:
     """Accept PEM or DER for a certificate ('x509') or CRL ('crl')."""
+    # OpenSSL on Windows writes CRLF; normalise so the stored bytes are the same on
+    # every platform (the pin is over DER and is unaffected either way).
     if b.lstrip().startswith(b"-----BEGIN"):
+        b = b.replace(b"\r\n", b"\n")
         return b if b.endswith(b"\n") else b + b"\n"
     r = subprocess.run(["openssl", kind, "-inform", "DER"], input=b, capture_output=True)
     if r.returncode:
         raise ValueError(f"not a PEM or DER {kind}")
-    return r.stdout
+    return r.stdout.replace(b"\r\n", b"\n")
 
 
 def cert_fingerprint(pem: bytes) -> str:

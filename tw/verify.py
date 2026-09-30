@@ -36,14 +36,15 @@ def _origin(frame: str) -> int:
 
 
 def verify_observation(obs: UnsignedObservation, blob: bytes,
-                       anchors: dict[DigestPair, bytes] | None = None):
+                       anchors: dict[DigestPair, bytes] | None = None, *,
+                       pinned_rca: str | None = None):
     checks, facts = {}, {}
     ev = evidence_digest(blob)
     checks["TW_EVIDENCE_REFERENCED"] = bool(obs.sources) and all(
         s.evidence == ev for s in obs.sources)
 
     try:
-        d = derive(blob, anchors)
+        d = derive(blob, anchors, pinned_rca=pinned_rca)
         checks["TW_EVIDENCE_PARSES"] = True
     except LookupError:
         checks["TW_EVIDENCE_PARSES"] = True
@@ -72,7 +73,7 @@ def verify_observation(obs: UnsignedObservation, blob: bytes,
         checks["TW_SEQUENCE"] = obs.sequence == d["sequence"]
         checks["TW_MONOTONIC"] = obs.monotonic_ps == d["mono_ns"] * 1000
         facts.update(mode=d["mode"], system=d["system"], consistency=d["consistency"],
-                     receiver=d["receiver"])
+                     receiver=d["receiver"], galileo=d["galileo"])
 
     # OSNMA authenticates navigation data, not when a signal arrived, so no timing
     # source can honestly claim it. This is a definite failure, not an unknown.

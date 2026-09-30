@@ -45,8 +45,18 @@ ZED-F9P, NEO-M9L and ZED-X20 series; the Septentrio mosaic G5 T (timing) and
 mosaic-X5; Furuno GF-10x and GT-series timing receivers; and the Quectel LC99T
 (timing). EUSPA states that the list is manufacturer-supplied and unverified. Being
 on it says nothing about raw-page output, which must be confirmed separately for
-any candidate: for u-blox, whether RXM-SFRBX carries complete Galileo E1-B I/NAV
-pages including the OSNMA field; for Septentrio, the equivalent raw I/NAV block.
+any candidate.
+
+What is known without a receiver (docs/SOURCES.md):
+
+- **u-blox.** RXM-SFRBX for Galileo E1-B (gnssId 2, sigId 1) carries the full page,
+  OSNMA field included: galmon, a public monitoring network built largely on u-blox
+  receivers, extracts the OSNMA field and checks the page CRC from exactly these
+  frames. `tw/ubx_inav.py` implements the same mapping. Firmware matters: u-blox
+  states the ZED-F9P supports OSNMA from its 1.5x firmware; raw SFRBX output predates
+  that and does not depend on it.
+- **Septentrio.** The mosaic-G5 T documents an SBF block, `GALRawINAV`, carrying the
+  raw I/NAV bits, SVID and receiver GST. No adapter for it exists here yet.
 
 ## Bring-up order
 

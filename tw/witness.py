@@ -28,6 +28,13 @@ Blob keys (integer, canonical CBOR map):
    1 "TW-GNSS/v1"        2 mode "PPS"|"OSC"      3 device profile (map)
    4 [raw UBX frames]    5 host monotonic ns     6 anchor evidence digest | null
    9 sequence           10 challenge q | null   11 B0 hash | null   12 session | null
+  13 Galileo capture: [[host monotonic ns, raw UBX-RXM-SFRBX frame], ...]   (optional)
+  14 OSNMA trust anchor (optional; required for a Galileo bound):
+       {1: Merkle-tree XML, 2: its .p256 signature (hex text),
+        3: end-entity + ICA certificate bundle (PEM),
+        4: [Root CA, Galileo SCA] certificates, 5: [CRLs]}
+     Only the Root CA's fingerprint is trusted from outside the blob (tw.gsc_pki);
+     everything else the bound rests on travels with the evidence.
 
 Device profile keys:
    1 "TW-DEVICE/v1"   2 device name      3 tAcc coverage factor k
@@ -46,8 +53,9 @@ from ctp.model import SourceObservation, UnsignedObservation
 
 from . import ubx
 from .holdover import drift_bound_ps, resolve_edges
-from .timescale import (PS, PS_PER_MS, PS_PER_NS, day_origin, frame_for_origin,
-                        gnss_to_abs_utc_ps, gnss_week_ps, tp_sub_ms_to_ps)
+from .timescale import (GPS_EPOCH_UNIX_S, GST_WEEK_OFFSET, PS, PS_PER_MS, PS_PER_NS, WEEK_S,
+                        day_origin, frame_for_origin, gnss_to_abs_utc_ps, gnss_week_ps,
+                        tp_sub_ms_to_ps)
 
 BLOB_TYPE = "TW-GNSS/v1"
 PROFILE_TYPE = "TW-DEVICE/v1"
@@ -89,11 +97,63 @@ def device_profile(name: str, *, tacc_k: int, cable_unc_ps: int, calib_unc_ps: i
 
 def evidence_blob(mode: str, profile: dict, frames: list[bytes], mono_ns: int, seq: int,
                   anchor: DigestPair | None = None, q: bytes | None = None,
-                  b0_hash: bytes | None = None, session: bytes | None = None) -> bytes:
-    return cbor.dumps({
-        1: BLOB_TYPE, 2: mode, 3: profile, 4: list(frames), 5: mono_ns,
-        6: None if anchor is None else anchor.as_obj(),
-        9: seq, 10: q, 11: b0_hash, 12: session})
+                  b0_hash: bytes | None = None, session: bytes | None = None,
+                  galileo: list[tuple[int, bytes]] | None = None,
+                  trust_anchor: dict | None = None) -> bytes:
+    o = {1: BLOB_TYPE, 2: mode, 3: profile, 4: list(frames), 5: mono_ns,
+         6: None if anchor is None else anchor.as_obj(),
+         9: seq, 10: q, 11: b0_hash, 12: session}
+    if galileo is not None:
+        o[13] = [[m, f] for m, f in galileo]
+    if trust_anchor is not None:
+        o[14] = trust_anchor
+    return cbor.dumps(o)
+
+
+def trust_anchor_material(xml: bytes, sig_hex: str, ee_bundle: bytes, rca: bytes, sca: bytes,
+                          crls: list[bytes]) -> dict:
+    return {1: xml, 2: sig_hex.strip(), 3: ee_bundle, 4: [rca, sca], 5: list(crls)}
+
+
+def galileo_facts(o: dict, leap_s: int | None, pinned_rca: str | None = None) -> dict | None:
+    """What the blob's Galileo capture establishes, re-derived. None if it has none.
+
+    The trust anchor is authenticated at the time the capture itself indicates, so
+    a certificate that was valid then is accepted even if it has since expired —
+    and one that was not yet valid, or already revoked in the carried CRLs, is not.
+    """
+    if 13 not in o:
+        return None
+    from . import gsc_pki, osnma, ubx_inav
+    pages, dropped = ubx_inav.timed_pages([(m, f) for m, f in o[13]])
+    out: dict = {"pages": len(pages), "dropped": dropped, "bound": None}
+    ta = o.get(14)
+    if ta is None:
+        out["trust_anchor"] = "ABSENT"
+        return out
+    if not pages or leap_s is None:
+        out["trust_anchor"] = "NOT_CHECKED"
+        return out
+    first = min(p.start for p in pages)
+    at_unix = GPS_EPOCH_UNIX_S + GST_WEEK_OFFSET * WEEK_S + first - leap_s
+    kw = {} if pinned_rca is None else {"pinned_rca_sha256": pinned_rca}
+    auth = gsc_pki.verify_merkle_tree(ta[1], ta[2], ta[3], rca=ta[4][0], sca=ta[4][1],
+                                      crls=list(ta[5]), at_unix=at_unix, **kw)
+    out["trust_anchor"] = {k: bool(v) for k, v in auth["checks"].items()}
+    if not auth["ok"]:
+        return out
+    rep = osnma.verify_stream(pages, auth["root"], extra_keys=auth["keys"], check_tags=False)
+    excluded: dict[str, int] = {}
+    for e in rep.excluded:
+        excluded[e[3]] = excluded.get(e[3], 0) + 1
+    out.update(merkle_root=auth["root"].hex().upper(), usable_keys=len(rep.keys),
+               excluded=excluded, key_failures=len(rep.key_failures),
+               bound=osnma.galileo_lower_bound(rep))
+    if out["bound"] is not None:
+        out["bound"]["utc_unix_s"] = (GPS_EPOCH_UNIX_S + GST_WEEK_OFFSET * WEEK_S
+                                      + out["bound"]["gst_seconds"] - leap_s)
+        out["bound"]["utc_leap_source"] = "receiver NAV-TIME leapS (not authenticated)"
+    return out
 
 
 def evidence_digest(blob: bytes) -> DigestPair:
@@ -189,7 +249,7 @@ def _check_mode(o, by) -> str:
     return mode
 
 
-def derive(blob: bytes, anchors: dict | None = None) -> dict:
+def derive(blob: bytes, anchors: dict | None = None, *, pinned_rca: str | None = None) -> dict:
     """Re-derive every claim from the blob's bytes.
 
     `anchors` maps evidence DigestPair -> blob for earlier OSC observations. An
@@ -252,9 +312,10 @@ def derive(blob: bytes, anchors: dict | None = None) -> dict:
 
     lo = min(s["claimed_abs_ps"] - s["uncertainty_ps"] for s in sources)
     hi = max(s["claimed_abs_ps"] + s["uncertainty_ps"] for s in sources)
+    leap = _nav_time(by)[1]["leap_s"]
     return {"mode": mode, "system": system, "sources": sources, "interval_abs": (lo, hi),
             "consistency": consistency, "receiver": rx, "mono_ns": o[5], "sequence": o[9],
-            "device": prof[2]}
+            "device": prof[2], "galileo": galileo_facts(o, leap, pinned_rca)}
 
 
 def witness_id(device_name: str) -> bytes:
