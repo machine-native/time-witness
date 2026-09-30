@@ -1,2 +1,4 @@
 *.cbor binary
 *.ubx binary
+*.crt binary
+*.crl binary
