@@ -1,0 +1,12 @@
+{
+  "type": "TW-GALMON-CAPTURE/v1",
+  "host": "86.82.68.237",
+  "port": 10000,
+  "host_utc_start": "2026-10-01T14:56:31+00:00",
+  "host_utc_end": "2026-10-01T15:13:32+00:00",
+  "frames_received": 28293,
+  "e1b_frames_kept": 12574,
+  "raw_stream_sha256": "618f54c9e1f8c60000f69f6dd476ba283d448501c5767ecf8da7eb4351270292",
+  "e1b_frames_sha256": "e44702b5f912dbf7946339690383db5e6b3a3204d5496722ce1f1b532f838882",
+  "note": "host UTC is the capturing machine's clock, not evidence"
+}

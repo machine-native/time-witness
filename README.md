@@ -20,6 +20,7 @@ Shown on real signals, 2026-10-01, every result re-derivable from this repositor
 | `galmon-2026-10-01-a` | public galmon relay, 16 min | 10,513, all CRC-valid | 09:18:30 |
 | `galmon-2026-10-01-pkr` | public galmon relay, 35 min | 25,283, all CRC-valid | 12:32:30 |
 | `android-m56-2026-10-01` | a Samsung Galaxy M56 phone, 20 min | 1,378, all CRC-valid | 13:50:30 |
+| `galmon-2026-10-01-epoch8` | public galmon relay, 17 min | 12,574, all CRC-valid | 15:13:00 |
 
 In each, Galileo's signed DSM-KROOT verifies under the trust anchor and every usable
 TESLA key chains to it. The trust anchor — the OSNMA Merkle root — is authenticated two
@@ -27,9 +28,18 @@ independent ways: through the EUSPA PKI (certificate chain, revocation lists, si
 pinned root; `trust/`), and by the satellites themselves, whose 12:00 GST public-key
 broadcast in `galmon-2026-10-01-pkr` reaches the same root.
 
-Each evidence file is also stamped with OpenTimestamps, so once Bitcoin confirms it the
-same bytes are bracketed **between a Galileo key release and a Bitcoin block** — neither
-bound depends on anything this project operates (`scripts/bracket.py`).
+The last capture is chronology-protocol's **epoch 8**: recorded after that epoch's
+opening block, committed by its checkpoint, and anchored in block 1270 of its chain.
+`scripts/verify_galileo_epoch.py` checks both halves from the published bytes and
+reports `GALILEO_BOUND`:
+
+    Galileo key release (GST 15:13:00)  <  capture  <  anchor block 1270
+
+Each evidence file is also stamped with OpenTimestamps, which brackets the same bytes
+**between a Galileo key release and a public Bitcoin block** — neither bound depends on
+anything this project operates (`scripts/bracket.py`, reports in `*.bracket.json`). The
+first three are attested in Bitcoin block 969456; the epoch-8 capture's proof is
+pending until Bitcoin confirms it.
 
 The verifier is checked against the official material, not against itself: every
 worked example in the Galileo OSNMA Receiver Guidelines (Annex A) reproduces exactly,

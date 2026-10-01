@@ -1,0 +1,21 @@
+{
+  "verdict": "GALILEO_BOUND",
+  "sandwich_verdict": "SANDWICH_PASS",
+  "binding_verdict": "UPPER_ONLY",
+  "record_sha256": "e44702b5f912dbf7946339690383db5e6b3a3204d5496722ce1f1b532f838882",
+  "lower": {
+    "type": "GALILEO-TESLA-LOWER-BOUND/v1",
+    "gst_seconds": 855587580,
+    "wn": 1414,
+    "tow": 400380,
+    "usable_keys": 338,
+    "condition": "TESLA chain not revoked after the recording"
+  },
+  "upper": {
+    "anchor_block_hash": "000000007b2aa16971a0bec5dc346b1be20965c9743ab4cbfe1347684b6d39c6",
+    "burial_depth": 2
+  },
+  "kroots_verified": 2,
+  "key_failures": 0,
+  "merkle_root": "832E15EDE55655EAC6E399A539477B7C034CCE24C3C93FFC904ACD9BF842F04E"
+}

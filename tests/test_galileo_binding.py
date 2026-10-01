@@ -82,3 +82,28 @@ def test_other_bytes_are_not_bound_by_this_sandwich(bundle):
     other = (LIVE / "galmon-2026-10-01-a" / "e1b-frames.bert").read_bytes()
     r = verify_galileo_binding(bundle, other, "galmon", _root(), [_sis_public_key()])
     assert r["verdict"] == "NOT_BOUND" and r["lower"] is not None   # bounded, but not by this
+
+
+CTP = ROOT.parent / "chronology-protocol"
+EPOCH8_BUNDLE = CTP / "vectors" / "valid" / "galileo-binding-bundle.cbor"
+EPOCH8_CAPTURE = LIVE / "galmon-2026-10-01-epoch8" / "e1b-frames.bert"
+
+
+def test_epoch_8_on_the_anchor_chain_is_galileo_bound():
+    """The real thing: chronology-protocol's epoch 8, anchored in block 1270, commits
+    to a galmon capture recorded after B0; Galileo bounds it from below."""
+    if not EPOCH8_BUNDLE.exists():
+        pytest.skip("chronology-protocol with epoch 8 not present")
+    try:
+        ensure_available()
+    except PQUnavailable:
+        pytest.skip("OpenSSL with ML-DSA/SLH-DSA unavailable")
+    from tw.galileo_binding import verify_galileo_binding
+    r = verify_galileo_binding(EPOCH8_BUNDLE.read_bytes(), EPOCH8_CAPTURE.read_bytes(), "galmon",
+                               _root(), [_sis_public_key()])
+    assert r["verdict"] == "GALILEO_BOUND", r
+    assert r["binding_verdict"] == "UPPER_ONLY"
+    assert r["upper"]["anchor_block_hash"] == (
+        "000000007b2aa16971a0bec5dc346b1be20965c9743ab4cbfe1347684b6d39c6")
+    assert (r["lower"]["wn"], r["lower"]["tow"]) == (1414, 400380)
+    assert r["key_failures"] == 0
