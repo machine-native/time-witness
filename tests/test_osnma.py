@@ -4,7 +4,8 @@ Two sources, both published by the European Union (docs/SOURCES.md):
 
 1. Worked examples: Galileo OSNMA Receiver Guidelines, Issue 1.3, January 2024,
    Annex A ("Examples of OSNMA Verifications"). The hex values below are quoted
-   from that annex, (c) European Union 2024, with section numbers.
+   unaltered from that annex, with section numbers. © European Union 2024; reproduced
+   under the document's Terms of Use and Disclaimers, given in full in THIRD-PARTY.md.
 2. Test vectors: the Annex B dataset (Test_vectors.zip, sha256 ef9b9afc...). It is
    not redistributed here; `scripts/fetch_osnma_vectors.py` downloads it from the
    GSC and refuses any other bytes. Without it, those tests report SKIPPED.

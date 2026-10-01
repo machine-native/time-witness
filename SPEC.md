@@ -268,12 +268,22 @@ relay's timestamps and station identifiers are recorded and never used for a cla
 A relayed capture is therefore evidence of the Galileo bound and of nothing about a
 local receiver; it is not a substitute for the hardware witness's own observation.
 
-### 10.7 Not yet done
+### 10.7 Privacy of evidence
 
-- The SFRBX mapping is independently confirmed (galmon) but not yet pinned against
-  bytes from our own receiver.
-- The operational Merkle tree has not been downloaded and authenticated: that needs
-  a registered GSC account.
+A phone's GnssLogger log records its position (`Fix` lines) and pseudoranges from
+which a position can be computed (`Raw` lines), and its file name is local clock time.
+Only an extract is published (`scripts/extract_android_galileo.py`): the version header,
+arrival times, and Galileo `Nav` lines, with the original's digest; the tool refuses to
+write unless the extract yields exactly the pages of the original. Galmon captures keep
+only Galileo navigation frames. What a published capture still reveals is which
+satellites were in view at which times — broadcast data that places a recording within
+a continent-sized region.
+
+### 10.8 Not yet done
+
+- The u-blox SFRBX mapping is independently confirmed (galmon) but not yet pinned
+  against bytes from a receiver of this project's.
+- The GNSS-SDR reader has not yet seen real GNSS-SDR output.
 
 ## 11. Relation to the sandwich verifier
 

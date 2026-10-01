@@ -1,104 +1,111 @@
 # time-witness
 
-A hardware time witness for [chronology-protocol](https://github.com/machine-native/chronology-protocol):
-a GNSS timing receiver and a free-running atomic oscillator whose observations
-carry **raw physical evidence** — the receiver's own timing messages, byte for
-byte, and the oscillator's independent account of the same edge — not a server's
-statement of the time.
+Physical-time evidence for [chronology-protocol](https://github.com/machine-native/chronology-protocol)
+from Galileo satellite signals: what a GNSS receiver actually received, byte for
+byte, re-derivable by anyone — not a server's statement of the time.
 
-**Status: specified, implemented in software, never run on hardware.** Every test
-here runs on synthetic frames. No receiver has produced evidence under this
-profile, and nothing in this repository claims otherwise.
+## What is claimed
 
-## Why another witness
+**A lower bound on time from the Galileo constellation, verified offline.** Galileo's
+navigation-message authentication (OSNMA) releases a TESLA chain key every 30
+seconds, after keeping it secret, and the chain is signed by a key the European GNSS
+Service Centre publishes. Bytes that contain a verified key were therefore assembled
+**no earlier than** that key's 30-second sub-frame. No relay, receiver or operator can
+produce a key early, so the bound holds whoever carried the bytes.
 
-chronology-protocol already accepts NTP, signed Roughtime and photographic
-witnesses. Each of them reports a time that something else asserted. This profile
-is different in two ways:
+Shown on real signals, 2026-10-01, every result re-derivable from this repository:
 
-1. **Two separable sources for one physical edge.** The oscillator's 1 PPS edge is
-   timed by GNSS *and* predicted by the oscillator alone from an earlier anchor.
-   If GNSS time is spoofed or delayed beyond the oscillator's holdover bound, the
-   two stop overlapping and the witness says so. The observation interval is their
-   hull, so it contains the true time as long as either source is honest.
-2. **Raw evidence, re-derivable.** A verifier re-parses the receiver's frames and
-   recomputes every number in the observation. A claim that is wider *or* narrower
-   than the evidence supports fails.
+| evidence (in `live/`) | source of the pages | pages | bound (GST) |
+|---|---|---|---|
+| `galmon-2026-10-01-a` | public galmon relay, 16 min | 10,513, all CRC-valid | 09:18:30 |
+| `galmon-2026-10-01-pkr` | public galmon relay, 35 min | 25,283, all CRC-valid | 12:32:30 |
+| `android-m56-2026-10-01` | a Samsung Galaxy M56 phone, 20 min | 1,378, all CRC-valid | 13:50:30 |
 
-It also verifies **Galileo OSNMA offline** (SPEC §10): from raw navigation pages it
-checks the public key against Galileo's Merkle root, the signed chain root, and each
-TESLA key back to it. A verified key is bound to its own 30-second sub-frame and was
-secret until then, so evidence containing one is no older than that sub-frame: a
-lower bound on time that comes from the Galileo constellation, not from any server.
-It reproduces every value in the official worked examples and passes all 18
-official test vectors. The Merkle root it rests on is itself authenticated through
-the EUSPA PKI (certificate chain, CRLs, signature, pinned root), and the whole
-capture can travel inside the evidence, so the bound re-derives from the bytes of a
-chronology-protocol sandwich (SPEC §10.5, §11).
+In each, Galileo's signed DSM-KROOT verifies under the trust anchor and every usable
+TESLA key chains to it. The trust anchor — the OSNMA Merkle root — is authenticated two
+independent ways: through the EUSPA PKI (certificate chain, revocation lists, signature,
+pinned root; `trust/`), and by the satellites themselves, whose 12:00 GST public-key
+broadcast in `galmon-2026-10-01-pkr` reaches the same root.
 
-## Try it
+Each evidence file is also stamped with OpenTimestamps, so once Bitcoin confirms it the
+same bytes are bracketed **between a Galileo key release and a Bitcoin block** — neither
+bound depends on anything this project operates (`scripts/bracket.py`).
 
-Requires Python 3.10+ and a chronology-protocol checkout (installed, or cloned as a
-sibling directory `../chronology-protocol`). No other dependencies.
+The verifier is checked against the official material, not against itself: every
+worked example in the Galileo OSNMA Receiver Guidelines (Annex A) reproduces exactly,
+and all 18 official test vectors (Annex B) pass with no key, tag or sequence mismatch.
+
+## What is not claimed
+
+- **Not an instant, only a lower bound.** The bound says "no earlier than"; the upper
+  side comes from an anchor (a Bitcoin block, or a chronology-protocol sandwich).
+- **Not when or where anything was received.** A relay's or phone's timestamps and
+  identifiers are recorded and never used for a claim.
+- **Not authenticated navigation data.** OSNMA tags only authenticate data received
+  before their key was disclosed, which a recording cannot show; they are reported as
+  *consistent*, never as authenticated.
+- **Not unconditional.** The bound assumes the TESLA chain was not revoked after the
+  recording; revocations inside a recording are detected and those keys excluded.
+- **No nanosecond timing yet.** The receiver/oscillator design in `SPEC.md` (a PPS
+  receiver with a free-running atomic reference, two separable time sources per edge)
+  is specified and implemented in software, tested on synthetic frames only, and
+  claims nothing until real hardware produces evidence for it.
+
+## Privacy of the evidence
+
+Phone GNSS logs record where they were taken. Only a position-free extract is
+published (`scripts/extract_android_galileo.py`): navigation pages and arrival times,
+no fixes, no pseudoranges, and not the original file name (GnssLogger names logs by
+local clock time). The extract records the original's digest and is proven to yield
+the same pages. Galmon captures keep only Galileo navigation frames; galmon's other
+messages, including station positions, are dropped at capture. What remains is
+broadcast data: which satellites were in view at a given time, which places a
+recording on a continent-sized region, no finer.
+
+## Verify it
+
+Requires Python 3.10+, the `openssl` command, and a chronology-protocol checkout
+(installed, or cloned as a sibling directory `../chronology-protocol`). No other
+Python dependencies.
 
 ```bash
-python scripts/fetch_osnma_vectors.py        # official OSNMA vectors, digest-checked (optional)
-python -m pytest -q                          # zero failures is the result
-python scripts/make_synthetic_vectors.py     # regenerates vectors/synthetic/ identically
+python scripts/fetch_osnma_vectors.py      # the official OSNMA test vectors, digest-checked
+python -m pytest -q                        # zero failures is the result
+python scripts/bracket.py live/android-m56-2026-10-01/galileo-extract.txt --offline
 ```
 
-The `openssl` command is needed for ECDSA. Without the fetched vectors, the tests
-that need them report SKIPPED rather than passing.
+Without the official vectors the tests that need them report SKIPPED, not passed.
+The real-sky tests use only public data: the satellites' own key broadcast and the
+committed Merkle root.
 
-`vectors/synthetic/` holds four cases — a receiver pulse, an oscillator anchor, an
-honest follow-up, and one with GNSS delayed by 50 µs — each with its expected
-verdict. They are labelled SYNTHETIC in every filename because they are not
-evidence: chronology-protocol's invariant 14 applies.
+## Getting Galileo pages yourself
+
+`docs/RECEIVER-ROUTES.md`: the public galmon relay, an Android phone that reports
+navigation messages, an RTL-SDR dongle with GNSS-SDR, or a u-blox receiver. Every
+route ends in `scripts/galileo_bound.py` and the same checks.
 
 ## What is here
 
 | path | what |
 |---|---|
-| `SPEC.md` | the TW-GNSS/v1 profile: evidence blob, derivation, interval rule, verdicts |
+| `SPEC.md` | the TW-GNSS/v1 profile, and §10 the Galileo lower bound |
 | `THREAT-MODEL.md` | attacks, responses, and the residuals, stated as such |
-| `tw/ubx.py` | strict UBX codec for the seven messages the profile reads |
-| `tw/timescale.py` | GPS/Galileo time to the shared UTC picosecond frame, integer only |
-| `tw/holdover.py` | the oscillator drift bound and edge counting |
-| `tw/witness.py` | evidence blob, deterministic derivation, chronology-protocol observation |
-| `tw/verify.py` | offline verifier: PASS / FAIL / INDETERMINATE |
-| `tw/osnma.py` | offline Galileo OSNMA verifier and the lower bound it supports |
+| `tw/osnma.py` | offline Galileo OSNMA verifier and the bound it supports |
 | `tw/gsc_pki.py` | authenticates the OSNMA Merkle tree through the EUSPA PKI |
-| `tw/ubx_inav.py` | Galileo E1-B pages out of u-blox RXM-SFRBX, timed from the navigation data |
-| `tw/sandwich_ext.py` | the chronology-protocol sandwich extension for this profile |
-| `docs/RECEIVER-ROUTES.md` | four ways to get Galileo pages: galmon relay, Android phone, RTL-SDR, u-blox |
-| `tw/android_nav.py`, `tw/gnsssdr_nav.py` | page readers for Android GnssLogger logs and GNSS-SDR's NavDataMonitor |
-| `tw/galmon_feed.py` | Galileo E1-B pages from the public galmon stream, rebuilt and CRC-checked |
-| `scripts/capture_galmon.py`, `scripts/galileo_bound.py` | capture live Galileo pages; turn a capture into a bound |
-| `scripts/capture_ubx.py` | raw serial capture with host monotonic times (not hardware-tested) |
-| `docs/HARDWARE.md` | reference architecture and what each part must prove before purchase |
-| `docs/SOURCES.md` | every external fact, its source, and how it was cross-checked |
+| `tw/galmon_feed.py`, `tw/android_nav.py`, `tw/gnsssdr_nav.py`, `tw/ubx_inav.py` | page readers: galmon relay, Android GnssLogger, GNSS-SDR, u-blox |
+| `tw/sandwich_ext.py` | the chronology-protocol sandwich extension for this evidence |
+| `tw/ubx.py`, `tw/timescale.py`, `tw/holdover.py`, `tw/witness.py`, `tw/verify.py` | the receiver/oscillator profile (software only) |
+| `scripts/` | capture, bound, bracket, trust-anchor and vector tools |
+| `live/` | real-sky evidence and its reports and proofs |
+| `trust/` | EUSPA PKI snapshot and the authenticated Merkle-tree record |
+| `docs/SOURCES.md` | every external fact, its source and digest, and how it was checked |
+| `THIRD-PARTY.md` | third-party material and its terms |
 
-## Boundaries
-
-chronology-protocol owns consensus, checkpoints, signatures, anchoring and the
-sandwich construction; this repository redefines none of them. It produces
-`UnsignedObservation`s that chronology-protocol already accepts in a checkpoint.
-chronology-protocol's sandwich verifier does not yet recognise this profile's
-evidence blobs; that change belongs in chronology-protocol.
-
-## Not yet done
-
-- No hardware capture. UBX layouts are cross-checked against an independent
-  implementation (pyubx2), not yet against a receiver, and the mapping from a
-  receiver's raw-subframe output to I/NAV pages is not yet pinned.
-- The operational Merkle tree has not been downloaded: it is published to
-  registered GSC users. `scripts/authenticate_merkle_tree.py` authenticates it
-  once it is.
-- OSNMA tags are checked for consistency only: a recording cannot show it was
-  received before the keys were disclosed, so navigation data is never called
-  authenticated. A receiver's own OSNMA report is recorded as the receiver's claim.
-- Device profile values are declarations. No oscillator has been characterised.
+chronology-protocol owns consensus, checkpoints, signatures, anchoring and the sandwich
+construction; this repository redefines none of them. Its sandwich verifier checks this
+repository's evidence through the extension in `tw/sandwich_ext.py`.
 
 ## Licence
 
-Apache-2.0. See `LICENSE` and `NOTICE`.
+Apache-2.0. See `LICENSE` and `NOTICE`. This project is not developed, endorsed or
+approved by the European Union, EUSPA, or any GNSS operator.

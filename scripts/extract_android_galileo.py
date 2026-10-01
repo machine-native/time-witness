@@ -70,7 +70,10 @@ def main(argv=None) -> int:
     out.mkdir(parents=True, exist_ok=True)
     (out / "galileo-extract.txt").write_text(ex, encoding="utf-8", newline="\n")
     meta = {"type": "TW-ANDROID-GALILEO-EXTRACT/v1",
-            "original_name": src.name, "original_sha256": hashlib.sha256(raw).hexdigest(),
+            # GnssLogger names logs by LOCAL clock time, which reveals the recording's
+            # time zone; the name is withheld and the digest identifies the original.
+            "original_name": "(withheld: GnssLogger names files by local clock time)",
+            "original_sha256": hashlib.sha256(raw).hexdigest(),
             "original_bytes": len(raw), "filter": FILTER,
             "extract_sha256": hashlib.sha256(ex.encode("utf-8")).hexdigest(),
             "pages": s_ex,

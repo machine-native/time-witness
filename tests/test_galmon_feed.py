@@ -161,7 +161,7 @@ def test_a_relay_misplaced_page_costs_one_key_and_never_moves_the_bound():
     assert [(t % osnma.WEEK_S, sv) for t, sv in rep.key_failures] == [(389670, 14)]
 
 
-def test_own_antenna_samsung_m56_reproduces_its_recorded_bound():
+def test_phone_samsung_m56_reproduces_its_recorded_bound():
     """Galileo pages from a Samsung Galaxy M56 (S.LSI GNSS), GnssLogger, 2026-10-01,
     as the position-free extract (scripts/extract_android_galileo.py). Every page CRC-valid
     and placed without ambiguity; Galileo's signed DSM-KROOT verifies under the broadcast
