@@ -52,7 +52,7 @@ def main(argv=None) -> int:
             "host_utc_end": utc_now(), "datagrams": len(dgs),
             "sha256": hashlib.sha256(blob).hexdigest(),
             "note": "host UTC is the capturing machine's clock, not evidence"}
-    (out / "capture.json").write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+    (out / "capture.json").write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8", newline="\n")
     print(json.dumps(meta, indent=2))
     return 0
 

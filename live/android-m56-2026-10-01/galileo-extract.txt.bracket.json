@@ -1,0 +1,29 @@
+{
+  "type": "TW-GALILEO-BITCOIN-BRACKET/v1",
+  "evidence": "galileo-extract.txt",
+  "evidence_sha256": "b24939c6c4c15060bfee22498025385b37910c315148367a7925b59d69d33179",
+  "lower": {
+    "source": "Galileo OSNMA TESLA key possession",
+    "gst_wn": 1414,
+    "gst_tow": 395430,
+    "usable_keys": 14,
+    "condition": "TESLA chain not revoked after the recording",
+    "utc": "2026-10-01T13:50:12+00:00",
+    "utc_unix_s": 1790862612,
+    "gst_minus_utc_s": 18,
+    "leap_source": "broadcast word type 6 (consistent, not authenticated offline)"
+  },
+  "upper": {
+    "source": "OpenTimestamps -> Bitcoin",
+    "proof": "galileo-extract.txt.ots",
+    "proof_commits_to_this_file": true,
+    "status": "PENDING",
+    "calendars": [
+      "https://alice.btc.calendar.opentimestamps.org",
+      "https://bob.btc.calendar.opentimestamps.org",
+      "https://btc.calendar.catallaxy.com",
+      "https://finney.calendar.eternitywall.com"
+    ],
+    "note": "calendars have not yet committed to Bitcoin; upgrade later with chronology-protocol's scripts/ots_upgrade.py"
+  }
+}

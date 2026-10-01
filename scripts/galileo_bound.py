@@ -104,7 +104,7 @@ def main(argv=None) -> int:
         "tags": rep.tags,
         "bound": osnma.galileo_lower_bound(rep),
     }
-    report_path.write_text(json.dumps(out, indent=2) + "\n", encoding="utf-8")
+    report_path.write_text(json.dumps(out, indent=2) + "\n", encoding="utf-8", newline="\n")
     print(json.dumps(out, indent=2))
     return 0 if out["bound"] else 1
 

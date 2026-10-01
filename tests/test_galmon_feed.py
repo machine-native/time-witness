@@ -176,3 +176,18 @@ def test_own_antenna_samsung_m56_reproduces_its_recorded_bound():
     rep = osnma.verify_stream(pages, _root(), extra_keys=[_sis_public_key()])
     assert rep.kroots and all(k["signature_ok"] for k in rep.kroots) and not rep.key_failures
     assert osnma.galileo_lower_bound(rep) == rec["bound"]
+
+
+def test_bracket_lower_side_and_proof_binding(tmp_path):
+    """The Galileo side of the Galileo-Bitcoin bracket, offline: the phone's own
+    word-6 pages give GST-UTC = 18 s, the bound lands at 13:50:12 UTC, and the
+    OpenTimestamps proof commits to exactly the committed evidence bytes."""
+    import hashlib
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    import bracket
+    from ctp.ots import parse_file
+    ev = LIVE / "android-m56-2026-10-01" / "galileo-extract.txt"
+    pages = bracket.pages_for(ev)
+    assert bracket.broadcast_leap_seconds(pages) == 18
+    assert parse_file(Path(str(ev) + ".ots")).file_digest == hashlib.sha256(ev.read_bytes()).digest()

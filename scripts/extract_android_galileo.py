@@ -75,7 +75,7 @@ def main(argv=None) -> int:
             "extract_sha256": hashlib.sha256(ex.encode("utf-8")).hexdigest(),
             "pages": s_ex,
             "header": next((l for l in ex.splitlines() if l.startswith("# Version:")), None)}
-    (out / "extract.json").write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+    (out / "extract.json").write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8", newline="\n")
     print(json.dumps(meta, indent=2))
     return 0
 

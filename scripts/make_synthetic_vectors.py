@@ -74,7 +74,7 @@ def main():
         manifest["cases"][name] = {"anchor": anchor, "expected_verdict": verdict,
                                    "expected_consistency": consistency}
     (OUT / "SYNTHETIC-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n",
-                                                 encoding="utf-8")
+                                                 encoding="utf-8", newline="\n")
     print(f"wrote {len(manifest['cases'])} synthetic cases to {OUT}")
 
 

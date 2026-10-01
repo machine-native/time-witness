@@ -79,7 +79,7 @@ def main(argv=None) -> int:
             "raw_stream_sha256": hashlib.sha256(raw).hexdigest(),
             "e1b_frames_sha256": hashlib.sha256(bytes(kept)).hexdigest(),
             "note": "host UTC is the capturing machine's clock, not evidence"}
-    (out / "capture.json").write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+    (out / "capture.json").write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8", newline="\n")
     print(json.dumps(meta, indent=2))
     return 0
 

@@ -3,3 +3,5 @@
 *.crt binary
 *.crl binary
 *.bert binary
+live/** -text
+*.ots binary

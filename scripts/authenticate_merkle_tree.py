@@ -74,7 +74,7 @@ def main(argv=None) -> int:
                              for p in sorted(PKI.iterdir())},
     }
     out = dest / (xml.stem + ".authenticated.json")
-    out.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+    out.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8", newline="\n")
     print(f"authenticated; Merkle root {record['merkle_root']}\nrecord: {out}")
     return 0
 
