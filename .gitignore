@@ -8,3 +8,4 @@ vectors/osnma-official/
 reference/
 trust/merkle-tree/*
 !trust/merkle-tree/*.authenticated.json
+local-captures/

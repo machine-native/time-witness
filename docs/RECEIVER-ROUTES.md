@@ -8,7 +8,7 @@ CRC-checked, and the bound rests on keys no source can produce early.
 | route | your own antenna | cost | status |
 |---|---|---|---|
 | galmon public relay | no | none | **working** — first real-sky bound 2026-10-01 |
-| Android phone (GnssLogger) | yes | none | reader built and tested on synthetic logs; depends on the phone |
+| Android phone (GnssLogger) | yes | none | **working on Samsung M56** (S.LSI GNSS): own-antenna bound 2026-10-01; Motorola edge 50 fusion (Qualcomm) reports no navigation messages |
 | RTL-SDR + GNSS-SDR | yes | a USB SDR dongle and an active L1 antenna | reader built and tested on synthetic data; not yet run |
 | u-blox receiver (RXM-SFRBX) | yes | a timing-capable receiver board | reader built; needed only for ns timing and the oscillator design |
 
@@ -36,6 +36,17 @@ guidelines name certain chipsets); a 20-minute test is the only way to know.
 4. Outdoors or at an open window with sky view, start logging; leave it 20 minutes.
 5. Stop, and copy the `gnss_log_*.txt` file to this computer.
 6. `python scripts/galileo_bound.py path/to/gnss_log_<...>.txt`
+
+Phones tried (2026-10-01, GnssLogger v3.1.1.3, 20 minutes at a window):
+
+| phone | GNSS chip (from the log header) | Galileo I/NAV pages | result |
+|---|---|---|---|
+| Samsung Galaxy M56 (SM-M566B) | S.LSI SPOTNAV 4.17.16 | 1,378, all CRC-valid, none ambiguous in time | bound 13:50:30 GST; DSM-KROOT verified, 14 keys, 0 failures |
+| Motorola edge 50 fusion | Qualcomm | none (no `Nav` lines of any type) | route closed for this phone |
+
+Logs record where they were taken (`Fix` lines; `Raw` pseudoranges). Publish only the
+position-free extract: `python scripts/extract_android_galileo.py LOG live/<name>`,
+which refuses to write unless the extract yields the same pages as the original.
 
 If the report says `NO_USABLE_GALILEO_PAGES` with `galileo_inav: 0`, the phone does
 not expose Galileo pages and this route is closed for it. If pages appear but many

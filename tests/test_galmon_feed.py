@@ -159,3 +159,20 @@ def test_a_relay_misplaced_page_costs_one_key_and_never_moves_the_bound():
     pages, _ = pages_from_stream((LIVE / "galmon-2026-10-01-pkr" / "e1b-frames.bert").read_bytes())
     rep = osnma.verify_stream(pages, _root(), extra_keys=[_sis_public_key()], check_tags=False)
     assert [(t % osnma.WEEK_S, sv) for t, sv in rep.key_failures] == [(389670, 14)]
+
+
+def test_own_antenna_samsung_m56_reproduces_its_recorded_bound():
+    """Galileo pages from a Samsung Galaxy M56 (S.LSI GNSS), GnssLogger, 2026-10-01,
+    as the position-free extract (scripts/extract_android_galileo.py). Every page CRC-valid
+    and placed without ambiguity; Galileo's signed DSM-KROOT verifies under the broadcast
+    key and the authenticated root; the bound is exactly the recorded one."""
+    import json
+    from tw import osnma
+    from tw.android_nav import pages_from_log
+    d = LIVE / "android-m56-2026-10-01"
+    rec = json.loads((d / "galileo-bound.json").read_text(encoding="utf-8"))
+    pages, stats = pages_from_log((d / "galileo-extract.txt").read_text(encoding="utf-8"))
+    assert stats == rec["pages"] and stats["crc_ok"] == len(pages) == 1378
+    rep = osnma.verify_stream(pages, _root(), extra_keys=[_sis_public_key()])
+    assert rep.kroots and all(k["signature_ok"] for k in rep.kroots) and not rep.key_failures
+    assert osnma.galileo_lower_bound(rep) == rec["bound"]

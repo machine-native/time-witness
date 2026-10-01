@@ -1,0 +1,18 @@
+{
+  "type": "TW-ANDROID-GALILEO-EXTRACT/v1",
+  "original_name": "(withheld: GnssLogger names files by local clock time)",
+  "original_sha256": "2707ee90ad346f1a7255543591709a89a088400b45228d2076d45840dde60529",
+  "original_bytes": 34922765,
+  "filter": "keep '# Version:' header; 'Raw,<ElapsedRealtimeMillis>' only, when it changes; Nav lines of type 1537 unchanged; drop everything else",
+  "extract_sha256": "b24939c6c4c15060bfee22498025385b37910c315148367a7925b59d69d33179",
+  "pages": {
+    "nav_lines": 1378,
+    "galileo_inav": 1378,
+    "malformed": 0,
+    "before_first_raw": 0,
+    "no_time_anchor": 0,
+    "ambiguous_placement": 0,
+    "crc_ok": 1378
+  },
+  "header": "# Version: v3.1.1.3 Platform: 16 Manufacturer: samsung Model: SM-M566B GNSS Hardware Model Name: S.LSI,K44,SPOTNAV_4.17.16_49_313014-rel"
+}
