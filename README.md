@@ -75,6 +75,8 @@ python scripts/bracket.py live/android-m56-2026-10-01/galileo-extract.txt --offl
 ```
 
 Without the official vectors the tests that need them report SKIPPED, not passed.
+On Windows, clone to a short path: the official vectors' deepest file names exceed the
+260-character path limit from a deeply nested directory, and OpenSSL cannot open them.
 The real-sky tests use only public data: the satellites' own key broadcast and the
 committed Merkle root.
 
