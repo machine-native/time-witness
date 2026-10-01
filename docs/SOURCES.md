@@ -105,8 +105,11 @@ applicable from 2025-12-10T10:00:00Z, xml sha256
 (PKID 2, ECDSA P-256, leaf 1). The tree file is from the GSC's registered-access portal
 and is not committed; its record is, and `tests/test_gsc_pki.py` re-runs every check
 wherever the file is present. The root's channel is the GSC website plus the EUSPA
-PKI; the first DSM-PKR broadcast a receiver captures will check it against the
-satellites themselves, an independent second channel.
+PKI. **Second, independent channel, confirmed 2026-10-01:** in the 12:00 GST window
+the satellites broadcast a DSM-PKR for PKID 2 (complete at 12:03:30 GST,
+`live/galmon-2026-10-01-pkr`) whose Merkle path reaches this same root, PDP included.
+Website and constellation agree; the real-sky tests now use the broadcast key and the
+committed root only, nothing from registered access.
 
 **The galmon feed** (`tw/galmon_feed.py`): stream served openly at 86.82.68.237, TCP
 10000, as documented by galileo-osnma for this use. Transport format from galmon's

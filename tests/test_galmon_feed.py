@@ -105,29 +105,57 @@ def test_corrupt_duplicate_and_conflicting_copies(official_pages):
     assert [(x.sv, x.start) for x in pages] == [(q.sv, q.start)]
 
 
-# ---- the first real-sky capture, 2026-10-01 ------------------------------------------
-LIVE_A = Path(__file__).resolve().parents[1] / "live" / "galmon-2026-10-01-a"
+# ---- real-sky captures, 2026-10-01 ---------------------------------------------------
+LIVE = Path(__file__).resolve().parents[1] / "live"
+RECORD = sorted((Path(__file__).resolve().parents[1] / "trust" / "merkle-tree")
+                .glob("*.authenticated.json"))[-1]
 
 
-def test_real_sky_capture_reproduces_its_recorded_bound():
-    """Live Galileo E1-B relayed by galmon, 09:04-09:20 UTC 2026-10-01. Every page must
-    pass CRC; the signed DSM-KROOT, every key and the bound must reproduce exactly
-    what galileo-bound.json recorded. Needs the authenticated tree (registered GSC
-    access, kept locally) for the public key; reports SKIPPED without it."""
+def _root():
+    """The Merkle root, from the committed authentication record. Nothing gated: the
+    root was authenticated through the EUSPA PKI and is published in that record."""
     import json
-    sys_path_scripts = Path(__file__).resolve().parents[1] / "scripts"
-    import sys
-    sys.path.insert(0, str(sys_path_scripts))
-    mt = Path(__file__).resolve().parents[1] / "trust" / "merkle-tree"
-    if not any(mt.glob("*.xml")):
-        pytest.skip("authenticated Merkle tree not present locally")
-    import galileo_bound
+    return bytes.fromhex(json.loads(RECORD.read_text(encoding="utf-8"))["merkle_root"])
+
+
+def _sis_public_key():
+    """The public key as the SATELLITES broadcast it (DSM-PKR, 12:00 GST window),
+    checked against the root -- the second, independent channel for the anchor."""
     from tw import osnma
-    rec = json.loads((LIVE_A / "galileo-bound.json").read_text(encoding="utf-8"))
-    auth, _ = galileo_bound.authenticated_tree()
-    pages, stats = pages_from_stream((LIVE_A / "e1b-frames.bert").read_bytes())
+    pages, _ = pages_from_stream((LIVE / "galmon-2026-10-01-pkr" / "e1b-frames.bert").read_bytes())
+    pkrs = [d for d in osnma.collect_dsms(osnma.subframes(pages)) if d["dsm_id"] >= 12]
+    v = osnma.verify_pkr(pkrs[0]["bits"], _root())
+    assert v["merkle_ok"] and v["pdp_ok"] and v["npkid"] == 2
+    return v
+
+
+def test_satellites_broadcast_the_same_root_the_gsc_published():
+    _sis_public_key()
+
+
+@pytest.mark.parametrize("capture", ["galmon-2026-10-01-a", "galmon-2026-10-01-pkr"])
+def test_real_sky_capture_reproduces_its_recorded_bound_from_public_data(capture):
+    """Live Galileo E1-B relayed by galmon. Every page passes CRC; Galileo's signed
+    DSM-KROOTs verify under a key the satellites broadcast and the root authenticates;
+    the bound is exactly what galileo-bound.json recorded. Uses nothing gated."""
+    import json
+    from tw import osnma
+    rec = json.loads((LIVE / capture / "galileo-bound.json").read_text(encoding="utf-8"))
+    pages, stats = pages_from_stream((LIVE / capture / "e1b-frames.bert").read_bytes())
     assert stats == rec["pages"] and stats["crc_rejected"] == 0
-    rep = osnma.verify_stream(pages, auth["root"], extra_keys=auth["keys"])
-    assert all(k["signature_ok"] for k in rep.kroots) and rep.key_failures == []
+    rep = osnma.verify_stream(pages, _root(), extra_keys=[_sis_public_key()])
+    assert rep.kroots and all(k["signature_ok"] and k["pdk_ok"] for k in rep.kroots)
+    assert len(rep.key_failures) == rec["key_failures"]
     assert osnma.galileo_lower_bound(rep) == rec["bound"]
     assert not rep.tags.get("TAG_MISMATCH") and not rep.tags.get("MACSEQ_MISMATCH")
+
+
+def test_a_relay_misplaced_page_costs_one_key_and_never_moves_the_bound():
+    """In the 12:00 capture, satellite E14's sub-frame at TOW 389670 holds a genuine,
+    CRC-valid page 11 from another time, placed there by the relay. Its MACK key
+    therefore matches no other satellite's, and it is rejected -- not used, and not
+    able to move the bound."""
+    from tw import osnma
+    pages, _ = pages_from_stream((LIVE / "galmon-2026-10-01-pkr" / "e1b-frames.bert").read_bytes())
+    rep = osnma.verify_stream(pages, _root(), extra_keys=[_sis_public_key()], check_tags=False)
+    assert [(t % osnma.WEEK_S, sv) for t, sv in rep.key_failures] == [(389670, 14)]

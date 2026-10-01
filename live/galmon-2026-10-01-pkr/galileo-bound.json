@@ -1,0 +1,111 @@
+{
+  "type": "TW-GALILEO-BOUND-REPORT/v1",
+  "capture": "galmon-2026-10-01-pkr",
+  "merkle_root": "832E15EDE55655EAC6E399A539477B7C034CCE24C3C93FFC904ACD9BF842F04E",
+  "trust_anchor_checks": {
+    "BUNDLE_HAS_EE_AND_ICA": true,
+    "RCA_PINNED": true,
+    "EE_IS_MERKLE_TREE_ROLE": true,
+    "CHAIN_AND_CRLS": true,
+    "XML_SIGNATURE": true
+  },
+  "trust_anchor_record": "OSNMA_MerkleTree_20251210100000_newPKID_2.xml",
+  "pages": {
+    "messages": 25283,
+    "e1b": 25283,
+    "crc_rejected": 0,
+    "duplicates": 0,
+    "conflicts": 808
+  },
+  "page_span_gst": {
+    "first": {
+      "wn": 1414,
+      "tow": 388693
+    },
+    "last": {
+      "wn": 1414,
+      "tow": 390791
+    }
+  },
+  "satellites": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    18,
+    19,
+    21,
+    23,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    36
+  ],
+  "dsm_pkr_from_satellites": [
+    {
+      "npkid": 2,
+      "npkt": 1,
+      "merkle_ok": true,
+      "pdp_ok": true,
+      "completed_at_gst": 855576210
+    }
+  ],
+  "kroots": [
+    {
+      "pkid": 2,
+      "cid": 1,
+      "gst0": {
+        "wn": 1414,
+        "tow": 385200
+      },
+      "signature_ok": true,
+      "pdk_ok": true
+    },
+    {
+      "pkid": 2,
+      "cid": 1,
+      "gst0": {
+        "wn": 1414,
+        "tow": 388800
+      },
+      "signature_ok": true,
+      "pdk_ok": true
+    }
+  ],
+  "usable_keys": 695,
+  "excluded": {},
+  "key_failures": 1,
+  "alerts": 0,
+  "tags": {
+    "UNVERIFIABLE": 2526,
+    "MACSEQ_CONSISTENT": 689,
+    "ADKD_RESERVED": 49,
+    "TAG_CONSISTENT": 1601
+  },
+  "bound": {
+    "type": "GALILEO-TESLA-LOWER-BOUND/v1",
+    "gst_seconds": 855577950,
+    "wn": 1414,
+    "tow": 390750,
+    "usable_keys": 695,
+    "condition": "TESLA chain not revoked after the recording"
+  }
+}
