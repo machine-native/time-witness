@@ -52,37 +52,46 @@ def page_sfrbx(sv: int, even: str, odd: str, *, chn: int = 0, version: int = 2) 
 
 
 def timed_pages(captures: list[tuple[int, bytes]]) -> tuple[list[Page], dict]:
-    """Pages with GST start times from (host monotonic ns, raw SFRBX frame) pairs.
-
-    Returns the pages and a summary of what was dropped and why: frames that are not
-    Galileo E1-B, satellites with no word type 5 to fix their time, and pages whose
-    placement would need more than half a page of rounding.
-    """
-    by_sv: dict[int, list[tuple[int, str, str]]] = {}
-    dropped = {"not_e1b": 0, "no_time_anchor": 0, "ambiguous_placement": 0}
+    """Pages with GST start times from (host monotonic ns, raw SFRBX frame) pairs."""
+    items, dropped = [], {"not_e1b": 0}
     for mono, raw in captures:
         p = sfrbx_page(ubx.parse_frame(raw))
         if p is None:
             dropped["not_e1b"] += 1
             continue
-        by_sv.setdefault(p[0], []).append((mono, p[1], p[2]))
+        items.append((mono, *p))
+    pages, more = place_pages(items)
+    dropped.update(more)
+    return pages, dropped
 
+
+def place_pages(items: list[tuple[int, int, str, str]]) -> tuple[list[Page], dict]:
+    """Give (arrival monotonic ns, svid, even, odd) pages their GST start times.
+
+    Each satellite's own word-5 pages fix its time; the others are placed 2 s apart
+    by arrival time. Satellites with no word 5 are dropped, and so is any page whose
+    arrival sits more than 0.5 s off a page boundary: a guess would only produce a
+    page that fails later, so it is not made.
+    """
+    by_sv: dict[int, list[tuple[int, str, str]]] = {}
+    for mono, sv, even, odd in items:
+        by_sv.setdefault(sv, []).append((mono, even, odd))
+    dropped = {"no_time_anchor": 0, "ambiguous_placement": 0}
     out: list[Page] = []
-    for sv, items in by_sv.items():
-        items.sort()
+    for sv, its in by_sv.items():
+        its.sort()
         anchors = []
-        for mono, even, odd in items:
+        for mono, even, odd in its:
             pg = Page(sv, 0, even, odd)
             if pg.crc_ok and pg.nominal and u(pg.word[:6]) == 5:
                 anchors.append((mono, gst_seconds(u(pg.word[73:85]), u(pg.word[85:105]))))
         if not anchors:
-            dropped["no_time_anchor"] += len(items)
+            dropped["no_time_anchor"] += len(its)
             continue
-        for mono, even, odd in items:
+        for mono, even, odd in its:
             a_mono, a_start = min(anchors, key=lambda a: abs(a[0] - mono))
             steps, rem = divmod(mono - a_mono + PAGE_NS // 2, PAGE_NS)
             if abs(rem - PAGE_NS // 2) > PAGE_NS // 4:
-                # jitter beyond +-0.5 s around a page boundary: do not guess
                 dropped["ambiguous_placement"] += 1
                 continue
             out.append(Page(sv, a_start + 2 * steps, even, odd))

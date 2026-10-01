@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """The Galileo lower bound a galmon capture supports, against the authenticated anchor.
 
-    python scripts/galileo_bound.py live/galmon-<label>
+    python scripts/galileo_bound.py live/galmon-<label>        # a galmon capture
+    python scripts/galileo_bound.py path/to/gnss_log_<...>.txt  # an Android GnssLogger log
 
 Uses the authenticated Merkle tree in trust/merkle-tree/ (scripts/authenticate_
 merkle_tree.py), re-running its authentication now against trust/euspa/, then
@@ -23,12 +24,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "scripts"))
 try:
     import ctp  # noqa: F401
 except ImportError:
     sys.path.insert(0, str(ROOT.parent / "chronology-protocol"))
 
 from tw import osnma  # noqa: E402
+from tw.android_nav import pages_from_log  # noqa: E402
 from tw.galmon_feed import pages_from_stream  # noqa: E402
 from tw.gsc_pki import verify_merkle_tree  # noqa: E402
 
@@ -57,7 +60,20 @@ def main(argv=None) -> int:
     argv = argv or sys.argv[1:]
     cap = Path(argv[0])
     auth, rec = authenticated_tree()
-    pages, stats = pages_from_stream((cap / "e1b-frames.bert").read_bytes())
+    if cap.is_file():                       # Android GnssLogger log
+        pages, stats = pages_from_log(cap.read_text(encoding="utf-8", errors="replace"))
+        report_path = cap.with_suffix(".galileo-bound.json")
+    elif (cap / "gnsssdr-datagrams.bin").exists():   # GNSS-SDR / RTL-SDR capture
+        from capture_gnsssdr import read_datagrams
+        from tw.gnsssdr_nav import pages_from_datagrams
+        pages, stats = pages_from_datagrams(read_datagrams(cap / "gnsssdr-datagrams.bin"))
+        report_path = cap / "galileo-bound.json"
+    else:                                   # galmon capture directory
+        pages, stats = pages_from_stream((cap / "e1b-frames.bert").read_bytes())
+        report_path = cap / "galileo-bound.json"
+    if not pages:
+        print(json.dumps({"pages": stats, "verdict": "NO_USABLE_GALILEO_PAGES"}, indent=2))
+        return 1
     rep = osnma.verify_stream(pages, auth["root"], extra_keys=auth["keys"])
 
     # The satellites' own DSM-PKRs, against the website's root.
@@ -88,7 +104,7 @@ def main(argv=None) -> int:
         "tags": rep.tags,
         "bound": osnma.galileo_lower_bound(rep),
     }
-    (cap / "galileo-bound.json").write_text(json.dumps(out, indent=2) + "\n", encoding="utf-8")
+    report_path.write_text(json.dumps(out, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(out, indent=2))
     return 0 if out["bound"] else 1
 

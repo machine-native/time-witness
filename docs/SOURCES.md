@@ -119,6 +119,18 @@ live sample every one of 241 E1-B pages rebuilt from those fields passed CRC-24Q
 both word-5 times present matched galmon's page times. Copies of all four galmon files
 are in `reference/cross-check/`.
 
+**Android and GNSS-SDR formats.** Android `GnssNavigationMessage.getData()` for
+Galileo I/NAV: even and odd page parts, 2 x 114 bits, sync and tail excluded, MSB
+first in 29 bytes (AOSP `location/java/android/location/GnssNavigationMessage.java`,
+sha256 `887d4681b944022886f6c0128d66da3acb6d906d27538d26ddba38cdecea7519`). GnssLogger's
+`Nav` line layout: google/gps-measurement-tools `FileLogger.java` at commit
+`93c638701abc5fce573fe0acf930784f4e555a96` (sha256
+`b9131c3a96b8c4862abf48e94bb5d11d4b3866ea79f38991f6d85dfab9cc45d0`). GNSS-SDR's
+NavDataMonitor `navMsg`: `docs/protobuf/nav_message.proto` at gnss-sdr commit
+`15c3c812c6274c83df0c4d074d963d3d93e4f6a4` (Galileo I/NAV: one 120-bit half page per
+message). Copies in `reference/cross-check/`. Neither reader has yet seen real
+output; both are tested on official-vector pages in those formats.
+
 The operational chain Root -> SCA -> ICA verifies with all three CRLs
 (`tests/test_gsc_pki.py`). The test-phase Merkle trees in the official vectors are
 signed validly, but their bundled ICA is self-issued and does not chain to the
