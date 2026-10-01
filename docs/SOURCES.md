@@ -108,6 +108,17 @@ wherever the file is present. The root's channel is the GSC website plus the EUS
 PKI; the first DSM-PKR broadcast a receiver captures will check it against the
 satellites themselves, an independent second channel.
 
+**The galmon feed** (`tw/galmon_feed.py`): stream served openly at 86.82.68.237, TCP
+10000, as documented by galileo-osnma for this use. Transport format from galmon's
+README "Internals" (`bert` magic, 2-byte big-endian length, protobuf), confirmed on the
+live stream; message schema `navmon.proto` at galmon commit 9bd22436 (sha256
+`6d74b382ba4704b3bac4aefa0e8617528cd7a5d357873176a9333fddbe305e1f`); field semantics
+from galmon's `ubx.cc` and `ubxtool.cc` at the same commit (E1-B `gnssTOW` is the page
+start, matching the convention established on the official vectors). On a 20-second
+live sample every one of 241 E1-B pages rebuilt from those fields passed CRC-24Q, and
+both word-5 times present matched galmon's page times. Copies of all four galmon files
+are in `reference/cross-check/`.
+
 The operational chain Root -> SCA -> ICA verifies with all three CRLs
 (`tests/test_gsc_pki.py`). The test-phase Merkle trees in the official vectors are
 signed validly, but their bundled ICA is self-issued and does not chain to the

@@ -70,6 +70,8 @@ evidence: chronology-protocol's invariant 14 applies.
 | `tw/gsc_pki.py` | authenticates the OSNMA Merkle tree through the EUSPA PKI |
 | `tw/ubx_inav.py` | Galileo E1-B pages out of u-blox RXM-SFRBX, timed from the navigation data |
 | `tw/sandwich_ext.py` | the chronology-protocol sandwich extension for this profile |
+| `tw/galmon_feed.py` | Galileo E1-B pages from the public galmon stream, rebuilt and CRC-checked |
+| `scripts/capture_galmon.py`, `scripts/galileo_bound.py` | capture live Galileo pages; turn a capture into a bound |
 | `scripts/capture_ubx.py` | raw serial capture with host monotonic times (not hardware-tested) |
 | `docs/HARDWARE.md` | reference architecture and what each part must prove before purchase |
 | `docs/SOURCES.md` | every external fact, its source, and how it was cross-checked |

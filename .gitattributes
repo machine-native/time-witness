@@ -2,3 +2,4 @@
 *.ubx binary
 *.crt binary
 *.crl binary
+*.bert binary

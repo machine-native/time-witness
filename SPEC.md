@@ -250,7 +250,25 @@ to. Usually that is a few minutes of sky; in the half hour after 00:00, 06:00,
 12:00 and 18:00 GST, when the public key is broadcast instead, it takes longer. The
 official configuration-2 vector needs 6.5 minutes.
 
-### 10.6 Not yet done
+### 10.6 Pages relayed by someone else
+
+The bound rests on possessing keys Galileo kept secret until broadcast, which no
+relay can produce early. So pages need not come from our own receiver: `tw/galmon_feed.py`
+reads the public galmon stream (a network of mostly u-blox receivers), rebuilds each
+E1-B page from the fields galmon carries and checks its CRC-24Q; identical copies from
+several receivers collapse to one, and two different valid versions of one slot are
+both dropped. `scripts/capture_galmon.py` keeps only the E1-B navigation frames —
+galmon's stream also carries volunteer stations' positions, which are dropped — and
+`scripts/galileo_bound.py` turns a capture into a bound against the authenticated
+trust anchor, also checking any DSM-PKR the satellites broadcast in it against that
+anchor's root.
+
+What a relay cannot give is anything about when or where a page was received; the
+relay's timestamps and station identifiers are recorded and never used for a claim.
+A relayed capture is therefore evidence of the Galileo bound and of nothing about a
+local receiver; it is not a substitute for the hardware witness's own observation.
+
+### 10.7 Not yet done
 
 - The SFRBX mapping is independently confirmed (galmon) but not yet pinned against
   bytes from our own receiver.
