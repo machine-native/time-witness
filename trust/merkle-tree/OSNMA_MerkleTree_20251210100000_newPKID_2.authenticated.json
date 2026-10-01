@@ -1,0 +1,28 @@
+{
+  "type": "TW-OSNMA-TRUST-ANCHOR/v1",
+  "merkle_root": "832E15EDE55655EAC6E399A539477B7C034CCE24C3C93FFC904ACD9BF842F04E",
+  "public_keys": [
+    {
+      "pkid": 2,
+      "leaf": 1
+    }
+  ],
+  "xml": "OSNMA_MerkleTree_20251210100000_newPKID_2.xml",
+  "xml_sha256": "ed6092f600058ca382ecac4fa92047bc96500235e3318d617ebf40c4e5b0638f",
+  "checks": {
+    "BUNDLE_HAS_EE_AND_ICA": true,
+    "RCA_PINNED": true,
+    "EE_IS_MERKLE_TREE_ROLE": true,
+    "CHAIN_AND_CRLS": true,
+    "XML_SIGNATURE": true
+  },
+  "checked_at_utc": "2026-10-01T08:55:26+00:00",
+  "pki_files_sha256": {
+    "ica_001_01.crl": "c34557d13c8a8e422decdfe3cc0b759d028538ca226a6a7897188290829ee617",
+    "ica_001_01.crt": "ce618fa2df142021cea644d5d46ccb437807ff29b3ebc9ed97dd2ee5b43838b1",
+    "rca_001_01.crl": "113bab188657633a029e5f75e50c23f2f2141e92bdc7c3fafff1937e80e7019c",
+    "rca_001_01.crt": "883614859b421a59988d0ec72a464164ea32a8b587df5b59a0949b5694d5c6e1",
+    "sca_001_01.crl": "f42d5fb82d04b03f7c836728e42edaa5cfd08ca4b5706e8620cf61f967ae0fc5",
+    "sca_001_01.crt": "f6e91a4639672f14975f84bf27b027e31b48fe0f60ec7010badc4a5a7bda9376"
+  }
+}

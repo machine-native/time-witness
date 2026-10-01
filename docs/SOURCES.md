@@ -97,6 +97,17 @@ Two things found in the official material, recorded so nobody rediscovers them:
 | galmon `ubx.cc` (SFRBX -> I/NAV page), commit `9bd224369b45e440424980b769fe3feb2d654f33` | github.com/berthubert/galmon | `61a690298c49faff685de13ee8303fd22502009206d574c57d11c5c4074e4553` |
 | u-blox ZED-F9P Interface Description UBX-18010854 R04 (UBX 27.00), "Signal Identifiers": Galileo E1 B = gnssId 2, sigId 1 | copy hosted by SparkFun | `8d088b6109569dca5ef23c883f21d8f5a48507095bb4699ad49b442abf0f4af9` |
 
+**The operational trust anchor**, authenticated 2026-10-01 with every check passing
+(`trust/merkle-tree/*.authenticated.json`): GSC `OSNMA_MerkleTree_20251210100000_newPKID_2`,
+applicable from 2025-12-10T10:00:00Z, xml sha256
+`ed6092f600058ca382ecac4fa92047bc96500235e3318d617ebf40c4e5b0638f`, Merkle root
+`832E15EDE55655EAC6E399A539477B7C034CCE24C3C93FFC904ACD9BF842F04E`, one public key
+(PKID 2, ECDSA P-256, leaf 1). The tree file is from the GSC's registered-access portal
+and is not committed; its record is, and `tests/test_gsc_pki.py` re-runs every check
+wherever the file is present. The root's channel is the GSC website plus the EUSPA
+PKI; the first DSM-PKR broadcast a receiver captures will check it against the
+satellites themselves, an independent second channel.
+
 The operational chain Root -> SCA -> ICA verifies with all three CRLs
 (`tests/test_gsc_pki.py`). The test-phase Merkle trees in the official vectors are
 signed validly, but their bundled ICA is self-issued and does not chain to the

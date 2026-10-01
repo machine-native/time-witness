@@ -99,3 +99,33 @@ def test_a_substituted_root_ca_is_caught_by_the_pin():
                            at_unix=IN_2023, **{**_test_pki(),
                                                "pinned_rca_sha256": EUSPA_RCA_001_01_SHA256})
     assert not r["checks"]["RCA_PINNED"]
+
+
+# ---- the operational tree, authenticated once and recorded ------------------------
+MT = ROOT / "trust" / "merkle-tree"
+RECORDS = sorted(MT.glob("*.authenticated.json"))
+
+
+@pytest.mark.parametrize("record", RECORDS, ids=[r.name for r in RECORDS])
+def test_the_recorded_operational_trust_anchor_still_authenticates(record):
+    """The GSC tree is not committed (registered access); its authentication record
+    is. Where the tree files are present locally, every check is re-run at the time
+    the record says it was made, against the committed PKI snapshot, and must reach
+    the recorded root. Without the files this reports SKIPPED, never a pass."""
+    import json
+    rec = json.loads(record.read_text(encoding="utf-8"))
+    xml = MT / rec["xml"]
+    if not xml.exists():
+        pytest.skip(f"{rec['xml']} not present locally (registered GSC access)")
+    import hashlib
+    assert hashlib.sha256(xml.read_bytes()).hexdigest() == rec["xml_sha256"]
+    at = int(datetime.datetime.fromisoformat(rec["checked_at_utc"]).timestamp())
+    r = verify_merkle_tree(xml.read_bytes(), Path(str(xml) + ".p256").read_text(),
+                           xml.with_suffix(".crt").read_bytes(),
+                           rca=(PKI / "rca_001_01.crt").read_bytes(),
+                           sca=(PKI / "sca_001_01.crt").read_bytes(),
+                           crls=[(PKI / n).read_bytes() for n in (
+                               "rca_001_01.crl", "sca_001_01.crl", "ica_001_01.crl")],
+                           at_unix=at)
+    assert r["ok"], r["checks"]
+    assert r["root"].hex().upper() == rec["merkle_root"]

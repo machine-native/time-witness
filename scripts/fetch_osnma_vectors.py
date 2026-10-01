@@ -26,10 +26,19 @@ SHA256 = "ef9b9afc6ef9e1c57393415cf2a1dc80c4035e7c06123907ea0bb97dd3ccf370"
 DEST = Path(__file__).resolve().parents[1] / "vectors" / "osnma-official"
 
 
+LOCAL = Path(__file__).resolve().parents[1] / "reference" / "galileo" / "Test_vectors.zip"
+
+
 def main() -> int:
-    req = urllib.request.Request(URL, headers={"User-Agent": "time-witness/0.1"})
-    with urllib.request.urlopen(req, timeout=300) as r:
-        data = r.read()
+    # The workspace keeps its own copy (reference/, digest-checked like any other
+    # source); the network is only the fallback.
+    if LOCAL.exists():
+        data = LOCAL.read_bytes()
+        print(f"using local copy {LOCAL}")
+    else:
+        req = urllib.request.Request(URL, headers={"User-Agent": "time-witness/0.1"})
+        with urllib.request.urlopen(req, timeout=300) as r:
+            data = r.read()
     got = hashlib.sha256(data).hexdigest()
     if got != SHA256:
         print(f"refusing: sha256 {got} != recorded {SHA256}", file=sys.stderr)
