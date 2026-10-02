@@ -87,9 +87,9 @@ Union.
 
 ## pyubx2
 
-`tests/test_ubx.py` pins five UBX frames serialised by pyubx2 1.3.8 (BSD-3-Clause,
-© semuadmin / Steve Smith, github.com/semuconsulting/pyubx2). No pyubx2 code is
-included.
+`tests/test_ubx.py` pins five UBX frames, and `tests/test_ubx_config.py` one
+configuration frame, serialised by pyubx2 1.3.8 (BSD-3-Clause, © semuadmin / Steve
+Smith, github.com/semuconsulting/pyubx2). No pyubx2 code is included.
 
 ## Formats followed, no code included
 

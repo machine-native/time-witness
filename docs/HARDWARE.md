@@ -60,8 +60,11 @@ What is known without a receiver (docs/SOURCES.md):
 
 ## Bring-up order
 
-1. Receiver alone, mode `PPS`: capture, confirm every layout in docs/SOURCES.md
-   "still to pin" against real frames, commit the capture.
+1. Receiver alone, mode `PPS`: configure and capture in one step
+   (`python scripts/capture_ubx.py --port COMn --seconds 1200 --out live/<label>
+   --configure USB`; RAM layer only, the ACK is checked in the raw stream), then
+   confirm every layout in docs/SOURCES.md "still to pin" against real frames and
+   commit the capture.
 2. Oscillator on EXTINT, mode `OSC`: confirm TIM-TM2 units and edge counting
    against the host clock over an hour.
 3. Declare the device profile from the parts actually fitted, stating which

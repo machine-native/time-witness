@@ -21,6 +21,14 @@ was checked. Nothing here is taken from a single source where a second exists.
   in `tests/test_ubx.py`; this repository's encoder reproduces them byte-for-byte.
   pyubx2 takes TIM-TP `towSubMS` in milliseconds scaled by 2⁻³², confirming that
   unit independently. No pyubx2 code is included in this repository.
+- **Receiver configuration keys** (`tw/ubx_config.py`): every UBX-CFG-VALSET key ID
+  and the VALSET layout (§5.9.27) were read from the u-blox ZED-F9P Interface
+  Description UBX-18010854 R04 (sha256 below) and agree with pyubx2 1.3.8's
+  `ubxtypes_configdb.py` (sha256
+  `d25fb9107fc63968ad63f4fd2ef3429aa524ac59d56f9cb57665b2d0b353028b`) for all fifteen
+  keys used. A VALSET frame serialised by pyubx2 is pinned in
+  `tests/test_ubx_config.py` and reproduced byte-for-byte. Still to pin on hardware:
+  that a timing receiver's firmware (ZED-F9T) accepts the same keys.
 - **Checksum:** the 8-bit Fletcher algorithm, checked against the MON-VER poll
   frame `B5 62 0A 04 00 00 0E 34` quoted widely in u-blox material.
 - **Still to pin against receiver bytes:** the unit of TIM-TM2 `towSubMsR` (ns) and `accEst`
