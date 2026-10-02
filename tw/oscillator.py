@@ -16,6 +16,12 @@ reported beside it so the two can be compared. Edges are numbered by the receive
 edge counter, not by arrival order, so a missed time-mark message shows up as a gap
 instead of silently stretching a second.
 
+Time base. The receiver stamps an edge on GNSS time or on UTC, as its time-pulse
+configuration says; u-blox 8 standard firmware defaults to UTC (M8 specification,
+default settings: gridUtcGnss = 0). Either serves, since only differences are used and
+over a capture the two differ by a constant number of leap seconds. One capture must
+use one base throughout; receiver-local time is never used.
+
 Integer nanoseconds are kept until the subtraction of the first edge; only the
 differences, a few hundred seconds' worth of nanoseconds, become floating point.
 """
@@ -29,12 +35,12 @@ NS_PER_WEEK = 604_800 * 1_000_000_000
 
 
 def rising_edges(data: bytes) -> tuple[list[dict], dict]:
-    """GNSS-time rising edges from a raw capture, one per counter value.
+    """Rising edges on GNSS or UTC time from a capture, one per counter value.
 
-    Kept only when the receiver flags a new rising edge with a valid GNSS (not
-    receiver-local) time base. Repeated reports of the same edge are dropped."""
+    Kept only when the receiver flags a new rising edge with a valid time on a GNSS or
+    UTC base (never receiver-local time). Repeated reports of the same edge are dropped."""
     out, seen = [], set()
-    dropped = {"not_new_rising": 0, "time_invalid": 0, "not_gnss_base": 0, "repeat": 0}
+    dropped = {"not_new_rising": 0, "time_invalid": 0, "receiver_time_base": 0, "repeat": 0}
     for _, f in ubx.split_stream(data):
         if f.key != ubx.TIM_TM2:
             continue
@@ -45,15 +51,16 @@ def rising_edges(data: bytes) -> tuple[list[dict], dict]:
         if not d["time_valid"]:
             dropped["time_invalid"] += 1
             continue
-        if d["time_base"] != 1:
-            dropped["not_gnss_base"] += 1
+        if d["time_base"] not in (1, 2):
+            dropped["receiver_time_base"] += 1
             continue
         t = d["wn_r"] * NS_PER_WEEK + d["tow_ms_r"] * 1_000_000 + d["tow_sub_ns_r"]
         if (d["count"], t) in seen:
             dropped["repeat"] += 1
             continue
         seen.add((d["count"], t))
-        out.append({"count": d["count"], "t_ns": t, "acc_est_ns": d["acc_est_ns"]})
+        out.append({"count": d["count"], "t_ns": t, "acc_est_ns": d["acc_est_ns"],
+                    "time_base": "GNSS" if d["time_base"] == 1 else "UTC"})
     return out, dropped
 
 
@@ -82,6 +89,9 @@ def allan_deviation(phase_s: list[float], tau0_s: float = 1.0) -> dict[int, floa
 def analyse(edges: list[dict], period_ns: int = 1_000_000_000) -> dict:
     if len(edges) < 3:
         raise ValueError("need at least three edges")
+    bases = {e.get("time_base") for e in edges}
+    if len(bases) != 1:
+        raise ValueError(f"edges on more than one time base: {sorted(map(str, bases))}")
     edges = sorted(edges, key=lambda e: e["t_ns"])
     idx = _unwrap([e["count"] for e in edges])
     n0, t0 = idx[0], edges[0]["t_ns"]
@@ -101,7 +111,8 @@ def analyse(edges: list[dict], period_ns: int = 1_000_000_000) -> dict:
     even = len(gaps) == 0
     acc = sorted(e["acc_est_ns"] for e in edges)
     return {
-        "edges": len(edges), "span_s": k[-1], "missing_edges": sum(gaps),
+        "edges": len(edges), "time_base": bases.pop(), "span_s": k[-1],
+        "missing_edges": sum(gaps),
         "frequency_offset": y, "frequency_offset_ppm": y * 1e6,
         "residual_rms_ns": math.sqrt(sum(r * r for r in resid) / len(resid)) * 1e9,
         "residual_max_ns": max(abs(r) for r in resid) * 1e9,

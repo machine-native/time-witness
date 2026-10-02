@@ -18,7 +18,9 @@ requires be followed by a save to battery-backed RAM and a hardware reset
 only to BBR, never to flash. u-blox 9 and 10 receivers need no persistent setup:
 capture_ubx.py --configure sets everything in RAM.
 
-Every byte sent and received is written to the --out record.
+Every byte sent is written to the --out record, with the receiver's replies (MON-VER,
+ACK, NAK) as received. Nothing else it says is kept: its default NMEA output states
+where the antenna is (tw/ubx_filter.py).
 """
 from __future__ import annotations
 
@@ -33,6 +35,14 @@ sys.path.insert(0, str(ROOT))
 
 from tw import ubx_config as uc  # noqa: E402
 from tw.ubx import split_stream  # noqa: E402
+from tw.ubx_filter import ACK_ACK, ACK_NAK, MON_VER, CaptureFilter  # noqa: E402
+
+REPLIES = frozenset({MON_VER, ACK_ACK, ACK_NAK})
+
+
+def replies_only(data: bytes) -> list[str]:
+    """The receiver's replies in `data`, hex, byte-exact; everything else dropped."""
+    return [f.raw().hex() for _, f in split_stream(CaptureFilter(REPLIES).feed(data))]
 
 
 def exchange(port, frame: bytes, seconds: float) -> bytes:
@@ -68,7 +78,7 @@ def main(argv=None) -> int:
     with serial.Serial(a.port, a.baud, timeout=0.2) as port:
         poll = uc.mon_ver_poll()
         got = exchange(port, poll, 2.0)
-        log.append({"sent": poll.hex(), "received": got.hex()})
+        log.append({"sent": poll.hex(), "replies": replies_only(got)})
         ver = [f for _, f in split_stream(got) if f.key == uc.MON_VER and f.payload]
         if not ver:
             print("no MON-VER answer: wrong port or baud rate, or not a u-blox receiver")
@@ -93,8 +103,8 @@ def main(argv=None) -> int:
                         ("CFG-CFG save RXM to BBR", uc.m8_save_rxm_to_bbr(), uc.CFG_CFG, 1.0)):
                     got = exchange(port, frame, wait)
                     answer = uc.acks(got, cls_id)
-                    steps.append({"step": name, "sent": frame.hex(), "received": got.hex(),
-                                  "ack": answer[:1]})
+                    steps.append({"step": name, "sent": frame.hex(),
+                                  "replies": replies_only(got), "ack": answer[:1]})
                     if answer[:1] != [True]:
                         verdict = f"{name} was not acknowledged; stopped before the reset"
                         break

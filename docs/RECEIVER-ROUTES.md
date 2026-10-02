@@ -10,7 +10,7 @@ CRC-checked, and the bound rests on keys no source can produce early.
 | galmon public relay | no | none | **working** — first real-sky bound 2026-10-01 |
 | Android phone (GnssLogger) | yes | none | **working on Samsung M56** (S.LSI GNSS): own-antenna bound 2026-10-01; Motorola edge 50 fusion (Qualcomm) reports no navigation messages |
 | RTL-SDR + GNSS-SDR | yes | a USB SDR dongle and an active L1 antenna | reader built and tested on synthetic data; not yet run |
-| u-blox receiver (RXM-SFRBX) | yes | a timing-capable receiver board | reader built; needed only for ns timing and the oscillator design |
+| u-blox receiver (RXM-SFRBX) | yes | a u-blox 8/9/10 board; a genuine NEO-M8N (firmware 3.01) is the low-cost option | capture, setup and reader built, not yet hardware-tested; the route for the oscillator design |
 
 ## Before any route: the trust anchor
 
@@ -86,5 +86,8 @@ verdict, only the decoded half-pages, and checks them itself.
 
 ## 4. u-blox receiver
 
-See docs/HARDWARE.md. Raw RXM-SFRBX frames are read by tw/ubx_inav.py; this is the
-route the full time-witness design (PPS, oscillator, TIM-TM2) is built on.
+See docs/HARDWARE.md ("The low-cost route" for a NEO-M8N). `scripts/setup_receiver.py`
+identifies the receiver and refuses one without Galileo; `scripts/capture_ubx.py`
+records only allowlisted frames (no NMEA, no position); `scripts/galileo_bound.py
+live/<label>.ubx` reads the RXM-SFRBX pages through tw/ubx_inav.py. This is the route
+the full time-witness design (PPS, oscillator, TIM-TM2) is built on.

@@ -19,7 +19,8 @@ below is claimed to work until it has produced bytes on the bench.
 - The oscillator is **not** disciplined by GNSS inside a chain. A GPSDO that
   steers itself to GNSS cannot be the independent source this profile needs; if a
   GPSDO is used, its steering must be disabled (true holdover) for the chain.
-- The host records the raw stream (`scripts/capture_ubx.py`) and signs
+- The host records the receiver's evidence frames byte-exact (`scripts/capture_ubx.py`;
+  NMEA and any position output are dropped as they arrive) and signs
   observations with chronology-protocol's PQ-5 keys.
 
 ## Parts, and the question each must answer first
@@ -71,8 +72,9 @@ pages, and an edge from a clock the receiver does not steer.
 | serial | the board's USB port, or a CP2102 USB-serial adapter on UART1 | — |
 
 **The purchase check comes first.** Many inexpensive "NEO-M8N" boards carry
-counterfeit or old parts stuck at firmware 2.01 (protocol 15), which has no Galileo
-and cannot be upgraded. On the day a board arrives, before anything else:
+counterfeit parts, or old ones, at firmware 2.01 (protocol 15), which has no Galileo.
+Old genuine parts can be upgraded; counterfeits cannot. On the day a board arrives,
+before anything else:
 
     python scripts/setup_receiver.py --port COMn --baud 9600 --dry-run
 
@@ -100,10 +102,13 @@ time-pulse LED; EXTINT may need a fine wire soldered to pin 4 of the module itse
     python scripts/capture_ubx.py --port COMn --baud 9600 --seconds 1800 \
         --out live/<label> --configure UART1 --receiver m8
     python scripts/oscillator_report.py live/<label>.ubx --out live/<label>.oscillator.json
-    python scripts/galileo_bound.py ...      # the same capture's Galileo pages
+    python scripts/galileo_bound.py live/<label>.ubx      # the same capture's Galileo pages
 
 The first command enables Galileo (saved to battery-backed RAM only, then a reset;
-see `tw/ubx_config.py`). The report measures the crystal against the receiver: its
+see `tw/ubx_config.py`). The capture keeps only an allowlist of UBX frames
+(`tw/ubx_filter.py`): a receiver's default NMEA output states where its antenna is, and
+it is dropped as it arrives, so a capture can be published without saying where it was
+taken. The setup record likewise keeps only the receiver's replies. The report measures the crystal against the receiver: its
 frequency offset, the jitter of its edge, and its Allan deviation. Expect parts per
 million and tens of nanoseconds: an inexpensive crystal and a 30 ns receiver. The
 measurement is real either way, and an atomic reference later uses the same wiring,
@@ -117,7 +122,7 @@ than a few seconds. Those are what the full kit is for.
 
 1. Receiver alone, mode `PPS`: configure and capture in one step
    (`python scripts/capture_ubx.py --port COMn --seconds 1200 --out live/<label>
-   --configure USB`; RAM layer only, the ACK is checked in the raw stream), then
+   --configure USB`; RAM layer only, the ACK is checked in the capture), then
    confirm every layout in docs/SOURCES.md "still to pin" against real frames and
    commit the capture.
 2. Oscillator on EXTINT, mode `OSC`: confirm TIM-TM2 units and edge counting

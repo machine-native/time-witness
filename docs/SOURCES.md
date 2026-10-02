@@ -43,6 +43,13 @@ was checked. Nothing here is taken from a single source where a second exists.
   (`tw/ubx_inav.py` accepts 0 and 1). NEO-M8 data sheet UBX-15031086 R14 (sha256
   `5dc7a6c044873a04e2dcc08a7f54e9e7374c5c69dcce694054ac4730c81a04a5`): EXTINT pin 4,
   TIMEPULSE pin 3, time pulse 30 ns RMS / 60 ns 99 %, VIH 0.7 × VCC.
+- **M8 default NMEA output** (`tw/ubx_config.py`, turned off for a capture): GGA, GLL,
+  GSA, GSV, RMC and VTG are class 0xF0, ids 0x00-0x05, in the M8 specification's NMEA
+  message list and in pyubx2 1.3.8; the CFG-MSG frame that turns GGA off is reproduced
+  byte-for-byte by pyubx2 (`tests/test_ubx_config.py`).
+- **M8 time base**: TIM-TM2 stamps on GNSS or UTC time per the time-pulse configuration;
+  standard M8 firmware defaults to a UTC grid (specification, default settings,
+  `gridUtcGnss` 0), so `tw/oscillator.py` accepts either, one base per capture.
 - **M8 firmware 3.01** (docs/HARDWARE.md, upgrade): `UBX_M8_301_SPG.911f2b77b649eb90f4be14ce56717b49.bin`
   from content.u-blox.com; its MD5 equals the hex in its name (checked), sha256
   `c91968fbd3e593872933c22269597bf3eed75fda1d5f51eeb3fb44efe3092caf`; named, with FW ID

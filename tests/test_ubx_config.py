@@ -65,6 +65,7 @@ PYUBX2_M8 = {
     "CFG-RST hardware hot": "b56206040400000000000e64",
     "MON-VER poll": "b5620a0400000e34",
     "CFG-MSG TIM-TM2 UART1": "b562060108000d030001000000002025",
+    "CFG-MSG NMEA GGA off": "b56206010800f000000000000000ff23",
 }
 
 
@@ -125,3 +126,12 @@ def test_an_m8_galileo_page_with_signal_id_zero_is_read_as_e1b():
     assert ubx_inav.sfrbx_page(parse_frame(encode(*RXM_SFRBX, bytes(m8))))[0] == 11
     m8[2] = 5                                                 # E5b: different layout
     assert ubx_inav.sfrbx_page(parse_frame(encode(*RXM_SFRBX, bytes(m8)))) is None
+
+
+def test_m8_capture_turns_the_default_nmea_off_first_then_enables_the_evidence():
+    frames = uc.m8_capture_frames("UART1")
+    assert frames[0].hex() == PYUBX2_M8["CFG-MSG NMEA GGA off"]
+    nmea = [parse_frame(f).payload for f in frames[:6]]
+    assert [p[:2] for p in nmea] == [bytes(k) for k in uc.M8_NMEA_DEFAULT]
+    assert all(p[2:] == bytes(6) for p in nmea)              # off on every port
+    assert len(frames) == 6 + len(uc.CAPTURE_MESSAGES)

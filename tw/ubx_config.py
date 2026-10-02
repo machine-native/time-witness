@@ -1,4 +1,8 @@
-"""Receiver configuration for a time-witness capture: UBX-CFG-VALSET, RAM layer only.
+"""Receiver configuration for a time-witness capture.
+
+u-blox 9 and 10 receivers (UBX-CFG-VALSET) are configured in the RAM layer only. u-blox 8
+receivers are configured per message, also in RAM, except one setting the M8
+specification makes persistent: enabling Galileo (see the u-blox 8 section below).
 
 NOT HARDWARE-TESTED. Every key below was taken from the u-blox ZED-F9P Interface
 Description (UBX-18010854 R04, digest in reference/SHA256SUMS) and agrees with
@@ -7,8 +11,8 @@ tables. The two disagreed on nothing once the PDF table was read in order. Keys 
 document does not list (the receiver's own OSNMA status message, for one) are left
 out on purpose: nothing here relies on the receiver's OSNMA verdict.
 
-Only the RAM layer is written. A power cycle returns the receiver to its stored
-configuration, so a capture session can never leave a receiver changed for good.
+For VALSET receivers only the RAM layer is written: a power cycle returns the receiver
+to its stored configuration, so a capture session never leaves it changed for good.
 
 VALSET layout (ID §5.9.27): version U1 = 0, layers X1 (bit 0 = RAM), reserved U1[2],
 then key (U4, little-endian) and value pairs; a value's size is bits 30..28 of its key
@@ -114,10 +118,17 @@ M8_MESSAGE_IDS = {"RXM_SFRBX": (0x02, 0x13), "TIM_TM2": (0x0D, 0x03), "TIM_TP": 
                   "NAV_TIMEGAL": (0x01, 0x25), "NAV_TIMEGPS": (0x01, 0x20),
                   "NAV_STATUS": (0x01, 0x03)}
 SECTION_RXM = 1 << 4             # holds UBX-CFG-GNSS (spec §3.2)
+# The NMEA sentences an M8 outputs by default (spec, NMEA protocol; same ids in pyubx2):
+# GGA, GLL, GSA, GSV, RMC, VTG. Turned off for a capture: at 9600 baud they crowd out the
+# evidence, and GGA, GLL and RMC state the antenna's position.
+M8_NMEA_DEFAULT = ((0xF0, 0x00), (0xF0, 0x01), (0xF0, 0x02), (0xF0, 0x03), (0xF0, 0x04),
+                   (0xF0, 0x05))
 DEVICE_BBR = 0x01
 
 # gnssId, reserved channels, max channels, enabled; signal mask 0x01 (L1C/A, E1, ...) each.
-# galmon's block list, with GPS and Galileo on and the rest off.
+# galmon's block list, with GPS and Galileo on and the rest off. The specification
+# recommends enabling QZSS whenever GPS is enabled (cross-correlation); galmon's list,
+# proven on volunteer M8 stations, does not, and it is kept as proven. Noted, not hidden.
 M8_GNSS_BLOCKS = ((0, 4, 8, 1), (1, 3, 4, 0), (3, 4, 8, 0), (5, 4, 8, 0), (2, 8, 10, 1),
                   (6, 6, 8, 0))
 
@@ -178,10 +189,11 @@ def m8_hardware_reset() -> bytes:
 
 
 def m8_capture_frames(port: str = "USB") -> list[bytes]:
-    """One UBX-CFG-MSG per capture message, rate 1 on `port` and 0 elsewhere (RAM)."""
+    """UBX-CFG-MSG frames (RAM): the default NMEA sentences off on every port, then each
+    capture message at rate 1 on `port` and 0 elsewhere. One ACK is expected per frame."""
     if port not in ("USB", "UART1"):
         raise ValueError("port is USB or UART1")
-    out = []
+    out = [encode(*CFG_MSG, bytes(nmea) + bytes(6)) for nmea in M8_NMEA_DEFAULT]
     for name in CAPTURE_MESSAGES:
         rates = [0] * 6
         rates[M8_PORTS[port]] = 1

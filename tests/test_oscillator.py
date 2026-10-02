@@ -21,7 +21,8 @@ def tm2(count, t_ns, *, flags=RISING_GNSS_VALID, acc=20):
                                         tow_ms, sub, acc))
 
 
-def synthetic(n=300, y=12.5e-6, sigma_ns=20.0, count0=65_500, drop=(), seed=7):
+def synthetic(n=300, y=12.5e-6, sigma_ns=20.0, count0=65_500, drop=(), seed=7,
+              flags=RISING_GNSS_VALID):
     rng = random.Random(seed)
     t0 = 1414 * oscillator.NS_PER_WEEK + 400_000 * 1_000_000_000 + 123_456_789
     out = b""
@@ -29,7 +30,7 @@ def synthetic(n=300, y=12.5e-6, sigma_ns=20.0, count0=65_500, drop=(), seed=7):
         if i in drop:
             continue
         t = t0 + i * 1_000_000_000 + round(i * 1e9 * y + rng.gauss(0, sigma_ns))
-        out += tm2((count0 + i) & 0xFFFF, t)
+        out += tm2((count0 + i) & 0xFFFF, t, flags=flags)
     return out
 
 
@@ -55,15 +56,35 @@ def test_the_16_bit_counter_wraps_and_lost_messages_show_as_gaps():
 def test_marks_without_a_valid_gnss_time_are_not_used():
     t = 1414 * oscillator.NS_PER_WEEK
     data = (tm2(1, t, flags=RISING_GNSS_VALID & ~0x40)          # time not valid
-            + tm2(2, t, flags=RISING_GNSS_VALID & ~(3 << 3))    # receiver time base
+            + tm2(2, t, flags=RISING_GNSS_VALID & ~(3 << 3))    # receiver-local time base
             + tm2(3, t, flags=RISING_GNSS_VALID & ~0x80)        # no new rising edge
             + tm2(4, t) + tm2(4, t))                            # same edge reported twice
     edges, dropped = oscillator.rising_edges(data)
     assert len(edges) == 1
-    assert dropped == {"not_new_rising": 1, "time_invalid": 1, "not_gnss_base": 1, "repeat": 1}
+    assert dropped == {"not_new_rising": 1, "time_invalid": 1, "receiver_time_base": 1, "repeat": 1}
 
 
 def test_too_few_edges_is_an_error_not_a_number():
     edges, _ = oscillator.rising_edges(synthetic(n=2))
+    with pytest.raises(ValueError):
+        oscillator.analyse(edges)
+
+
+RISING_UTC_VALID = (RISING_GNSS_VALID & ~(3 << 3)) | (2 << 3)
+
+
+def test_utc_based_marks_are_measured_the_same_way():
+    """u-blox 8 standard firmware stamps on UTC by default; that must not lose the data."""
+    edges, dropped = oscillator.rising_edges(synthetic(flags=RISING_UTC_VALID))
+    r = oscillator.analyse(edges)
+    assert r["time_base"] == "UTC" and r["edges"] == 300
+    assert abs(r["frequency_offset_ppm"] - 12.5) < 0.001
+
+
+def test_a_capture_mixing_time_bases_is_refused():
+    t = 1414 * oscillator.NS_PER_WEEK
+    data = (tm2(1, t) + tm2(2, t + 10**9, flags=RISING_UTC_VALID)
+            + tm2(3, t + 2 * 10**9))
+    edges, _ = oscillator.rising_edges(data)
     with pytest.raises(ValueError):
         oscillator.analyse(edges)
