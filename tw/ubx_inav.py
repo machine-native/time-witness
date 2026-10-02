@@ -12,7 +12,11 @@ produces rejected pages, not wrong ones.
 
 Signal. OSNMA is carried on E1-B only. u-blox signal identifiers give Galileo E1-B
 as gnssId 2, sigId 1 (interface description, "Signal Identifiers"); E5b I/NAV
-(sigId 5) has a different page layout and is ignored here.
+(sigId 5) has a different page layout and is ignored here. u-blox 8 receivers track
+only E1 for Galileo, and the M8 specification (UBX-13003221 R28) prints no signal
+identifier table, so what an M8 puts in that byte is not documented; galmon treats
+every M8 Galileo page that is not F/NAV as I/NAV. sigId 0 is therefore accepted as
+E1-B as well. Pin it on the first M8 capture; the page CRC rejects anything else.
 
 Time. SFRBX carries no timestamp. Each page's start time is taken from the
 navigation data itself — word type 5 carries WN and TOW, and its TOW is the start of
@@ -24,6 +28,8 @@ sub-frame time in. Errors fail closed.
 """
 from __future__ import annotations
 
+import bisect
+import json
 import struct
 
 from . import ubx
@@ -31,13 +37,14 @@ from .osnma import Page, gst_seconds, u
 
 GNSS_GALILEO = 2
 SIG_E1B = 1
+SIG_ACCEPTED = (SIG_E1B, 0)          # 0: what an M8 may report; see the module docstring
 PAGE_NS = 2_000_000_000
 
 
 def sfrbx_page(frame: ubx.Frame) -> tuple[int, str, str] | None:
     """(svid, even part, odd part) for a Galileo E1-B I/NAV SFRBX frame, else None."""
     d = ubx.rxm_sfrbx(frame)
-    if d["gnss_id"] != GNSS_GALILEO or d["sig_id"] != SIG_E1B or len(d["words"]) != 8:
+    if d["gnss_id"] != GNSS_GALILEO or d["sig_id"] not in SIG_ACCEPTED or len(d["words"]) != 8:
         return None
     bits = "".join(format(w, "032b") for w in d["words"])
     return d["sv_id"], bits[0:120], bits[128:248]
@@ -96,3 +103,29 @@ def place_pages(items: list[tuple[int, int, str, str]]) -> tuple[list[Page], dic
                 continue
             out.append(Page(sv, a_start + 2 * steps, even, odd))
     return out, dropped
+
+
+def captures_from_ubx(raw: bytes, index_lines: list[str]) -> list[tuple[int, bytes]]:
+    """(arrival monotonic ns, raw SFRBX frame) pairs from scripts/capture_ubx.py output.
+
+    The index records the host monotonic time of each serial read and the stream
+    offset it covered. A frame's arrival is the read that delivered its last byte:
+    that is when the whole frame existed on the host. Frames whose end is not covered
+    by any recorded read are dropped rather than given a guessed time. Only RXM-SFRBX
+    frames are returned; a capture also carries time marks and status, read elsewhere."""
+    reads = []
+    for line in index_lines:
+        if line.strip():
+            r = json.loads(line)
+            reads.append((r["offset"] + r["length"], r["mono_ns"]))
+    reads.sort()
+    ends = [e for e, _ in reads]
+    out = []
+    for off, f in ubx.split_stream(raw):
+        if f.key != ubx.RXM_SFRBX:
+            continue
+        last = off + 8 + len(f.payload)                 # one past the frame's last byte
+        i = bisect.bisect_left(ends, last)
+        if i < len(reads):
+            out.append((reads[i][1], f.raw()))
+    return out

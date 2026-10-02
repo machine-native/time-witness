@@ -97,6 +97,10 @@ Smith, github.com/semuconsulting/pyubx2). No pyubx2 code is included.
 - Android `GnssNavigationMessage` packing (AOSP) and GnssLogger's log layout
   (github.com/google/gps-measurement-tools) — `tw/android_nav.py`
 - GNSS-SDR's NavDataMonitor message (gnss-sdr.org) — `tw/gnsssdr_nav.py`
+- u-blox receiver protocol specifications and data sheets (u-blox AG) — `tw/ubx*.py`,
+  `docs/HARDWARE.md`; message layouts and pin numbers only, no text reproduced
+- Digilent's Cmod A7 master constraints (github.com/Digilent/digilent-xdc) — package pin
+  numbers in `hardware/cmod-a7-pps/pps_gen.xdc`
 
 ## Data in `live/`
 

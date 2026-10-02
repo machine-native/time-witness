@@ -29,6 +29,25 @@ was checked. Nothing here is taken from a single source where a second exists.
   keys used. A VALSET frame serialised by pyubx2 is pinned in
   `tests/test_ubx_config.py` and reproduced byte-for-byte. Still to pin on hardware:
   that a timing receiver's firmware (ZED-F9T) accepts the same keys.
+- **u-blox 8 / M8** (`tw/ubx_config.py`, M8 section): u-blox 8 / u-blox M8 Receiver
+  Description incl. Protocol Specification UBX-13003221 R28 (sha256
+  `241b6bce16f27fa754f3ef13a082ebf9a42e32ecf3ec9f3544df8a2c439702a2`): CFG-GNSS,
+  CFG-MSG, CFG-CFG, CFG-RST and MON-VER layouts; Galileo E1 needs protocol 18; enabling
+  Galileo must be followed by a BBR save and a hardware reset; CFG-GNSS sits in
+  configuration sub-section 4 (RXM); TIM-TM2 on every M8 protocol version; RXM-SFRBX
+  version 2 from protocol 18. Every M8 frame is reproduced byte-for-byte by pyubx2 1.3.8,
+  and the CFG-GNSS block list is byte-identical to galmon's `ubxtool.cc` (commit
+  `9bd22436`, sha256
+  `5005f14b5c602be543e1bd01eccb7ff67f90103ccc722c5deb89ba2d65ebdfd7`). The specification prints no signal-identifier
+  table, so the M8 value for Galileo E1-B is **still to pin** on a first M8 capture
+  (`tw/ubx_inav.py` accepts 0 and 1). NEO-M8 data sheet UBX-15031086 R14 (sha256
+  `5dc7a6c044873a04e2dcc08a7f54e9e7374c5c69dcce694054ac4730c81a04a5`): EXTINT pin 4,
+  TIMEPULSE pin 3, time pulse 30 ns RMS / 60 ns 99 %, VIH 0.7 × VCC.
+- **Cmod A7 pins** (`hardware/cmod-a7-pps/pps_gen.xdc`): Digilent `Cmod-A7-Master.xdc`,
+  digilent-xdc commit `00a3404901f35aa9567b01ecb3f2c233b6efe9f4` (sha256
+  `56568df3868ef359e938ef8defab33e1814fe4153435e99e13da9260d9db4eaf`): 12 MHz clock L17,
+  pio1 M3, LED 1 A17 -- the clock and LED pins agree with chronology-protocol's
+  `fpga/constraints/cmod_a7.xdc`, which has run on this board.
 - **Checksum:** the 8-bit Fletcher algorithm, checked against the MON-VER poll
   frame `B5 62 0A 04 00 00 0E 34` quoted widely in u-blox material.
 - **Still to pin against receiver bytes:** the unit of TIM-TM2 `towSubMsR` (ns) and `accEst`

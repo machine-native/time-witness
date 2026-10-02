@@ -107,6 +107,8 @@ route ends in `scripts/galileo_bound.py` and the same checks.
 | `tw/galmon_feed.py`, `tw/android_nav.py`, `tw/gnsssdr_nav.py`, `tw/ubx_inav.py` | page readers: galmon relay, Android GnssLogger, GNSS-SDR, u-blox |
 | `tw/sandwich_ext.py` | the chronology-protocol sandwich extension for this evidence |
 | `tw/ubx.py`, `tw/timescale.py`, `tw/holdover.py`, `tw/witness.py`, `tw/verify.py` | the receiver/oscillator profile (software only) |
+| `tw/ubx_config.py`, `tw/oscillator.py` | receiver configuration (u-blox 9/10 and u-blox 8), and the oscillator measurement from time marks |
+| `hardware/cmod-a7-pps/` | a free-running 1 PPS edge from a Cmod A7 FPGA board's own crystal (simulated, not yet built) |
 | `scripts/` | capture, bound, bracket, trust-anchor and vector tools |
 | `live/` | real-sky evidence and its reports and proofs |
 | `trust/` | EUSPA PKI snapshot and the authenticated Merkle-tree record |

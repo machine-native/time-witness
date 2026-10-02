@@ -18,6 +18,8 @@ class and id as payload; a NAK means nothing was applied.
 """
 from __future__ import annotations
 
+import re
+
 from .ubx import encode, split_stream
 
 VALSET = (0x06, 0x8A)
@@ -86,3 +88,105 @@ def ack_for(data: bytes, cls_id: tuple[int, int] = VALSET):
         if f.key in (ACK_ACK, ACK_NAK) and tuple(f.payload[:2]) == cls_id:
             return f.key == ACK_ACK
     return None
+
+
+# --- u-blox 8 / M8 (protocol 15-23.01): no VALSET, the older per-message configuration.
+#
+# Source: u-blox 8 / u-blox M8 Receiver Description incl. Protocol Specification,
+# UBX-13003221 R28 (digest in reference/SHA256SUMS). Every frame below is reproduced
+# byte-for-byte by pyubx2 1.3.8, and the GNSS block list is galmon's (ubxtool.cc), which
+# volunteer stations run on M8 receivers; the three agree.
+#
+# On M8, Galileo is not a RAM-only change. The specification (CFG-GNSS notes) requires
+# that enabling Galileo be followed by saving the configuration to battery-backed RAM
+# (UBX-CFG-CFG) and a hardware reset (UBX-CFG-RST). Only sub-section 4 (RXM, which holds
+# CFG-GNSS) is saved, and only to BBR, never to flash: removing backup power undoes it.
+# Message rates stay RAM-only and are set per capture, after the reset.
+
+MON_VER = (0x0A, 0x04)
+CFG_MSG = (0x06, 0x01)
+CFG_GNSS = (0x06, 0x3E)
+CFG_CFG = (0x06, 0x09)
+CFG_RST = (0x06, 0x04)
+
+M8_PORTS = {"DDC": 0, "UART1": 1, "UART2": 2, "USB": 3, "SPI": 4}
+M8_MESSAGE_IDS = {"RXM_SFRBX": (0x02, 0x13), "TIM_TM2": (0x0D, 0x03), "TIM_TP": (0x0D, 0x01),
+                  "NAV_TIMEGAL": (0x01, 0x25), "NAV_TIMEGPS": (0x01, 0x20),
+                  "NAV_STATUS": (0x01, 0x03)}
+SECTION_RXM = 1 << 4             # holds UBX-CFG-GNSS (spec §3.2)
+DEVICE_BBR = 0x01
+
+# gnssId, reserved channels, max channels, enabled; signal mask 0x01 (L1C/A, E1, ...) each.
+# galmon's block list, with GPS and Galileo on and the rest off.
+M8_GNSS_BLOCKS = ((0, 4, 8, 1), (1, 3, 4, 0), (3, 4, 8, 0), (5, 4, 8, 0), (2, 8, 10, 1),
+                  (6, 6, 8, 0))
+
+
+def mon_ver_poll() -> bytes:
+    return encode(*MON_VER, b"")
+
+
+def parse_mon_ver(payload: bytes) -> dict:
+    """swVersion CH[30], hwVersion CH[10], then extension CH[30] lines."""
+    def text(b):
+        return b.split(b"\x00", 1)[0].decode("ascii", "replace")
+    ext = [text(payload[i:i + 30]) for i in range(40, len(payload) - 29, 30)]
+    joined = " ".join(ext)
+    m = re.search(r"PROTVER[= ]\s*(\d+)\.(\d+)", joined)
+    protver = (int(m.group(1)), int(m.group(2))) if m else None
+    gnss = sorted({g for line in ext if ";" in line or line in ("GPS", "GAL")
+                   for g in line.split(";")})
+    return {"sw_version": text(payload[:30]), "hw_version": text(payload[30:40]),
+            "extensions": ext, "protver": protver, "gnss": gnss,
+            "galileo": "GAL" in gnss or "GAL" in joined.split(),
+            # protocol 27+ (u-blox 9, 10) is configured by VALSET; 15-23.01 (u-blox 8) is not
+            "config_interface": ("VALSET" if protver and protver >= (27, 0)
+                                 else "M8" if protver else None)}
+
+
+def m8_galileo_capable(info: dict) -> tuple[bool, str]:
+    """Galileo E1 needs protocol >= 18 (firmware 3.01). Counterfeit and old M8N parts are
+    stuck at 2.01 (protocol 15) and cannot be upgraded; refuse them by name."""
+    if info["protver"] is None:
+        return False, "no PROTVER in MON-VER: cannot tell what this receiver is"
+    if info["protver"] < (18, 0):
+        return False, (f"protocol {info['protver'][0]}.{info['protver'][1]:02d} has no Galileo "
+                       "(firmware 3.01 / protocol 18 needed); old or counterfeit part")
+    if not info["galileo"]:
+        return False, "MON-VER does not list GAL among supported systems"
+    return True, "ok"
+
+
+def m8_gnss_frame() -> bytes:
+    body = bytearray([0, 0, 0xFF, len(M8_GNSS_BLOCKS)])
+    for gnss, res, mx, on in M8_GNSS_BLOCKS:
+        body += bytes([gnss, res, mx, 0, on, 0, 0x01, 0])
+    return encode(*CFG_GNSS, bytes(body))
+
+
+def m8_save_rxm_to_bbr() -> bytes:
+    return encode(*CFG_CFG, (0).to_bytes(4, "little") + SECTION_RXM.to_bytes(4, "little")
+                  + (0).to_bytes(4, "little") + bytes([DEVICE_BBR]))
+
+
+def m8_hardware_reset() -> bytes:
+    """Hot start (no BBR section cleared), hardware reset immediately. Not acknowledged."""
+    return encode(*CFG_RST, bytes([0, 0, 0x00, 0]))
+
+
+def m8_capture_frames(port: str = "USB") -> list[bytes]:
+    """One UBX-CFG-MSG per capture message, rate 1 on `port` and 0 elsewhere (RAM)."""
+    if port not in ("USB", "UART1"):
+        raise ValueError("port is USB or UART1")
+    out = []
+    for name in CAPTURE_MESSAGES:
+        rates = [0] * 6
+        rates[M8_PORTS[port]] = 1
+        out.append(encode(*CFG_MSG, bytes(M8_MESSAGE_IDS[name]) + bytes(rates)))
+    return out
+
+
+def acks(data: bytes, cls_id: tuple[int, int]) -> list[bool]:
+    """Every ACK (True) / NAK (False) for `cls_id` in `data`, in order."""
+    return [f.key == ACK_ACK for _, f in split_stream(data)
+            if f.key in (ACK_ACK, ACK_NAK) and tuple(f.payload[:2]) == cls_id]

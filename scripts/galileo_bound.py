@@ -3,6 +3,7 @@
 
     python scripts/galileo_bound.py live/galmon-<label>        # a galmon capture
     python scripts/galileo_bound.py path/to/gnss_log_<...>.txt  # an Android GnssLogger log
+    python scripts/galileo_bound.py live/<label>.ubx            # a u-blox capture (capture_ubx.py)
 
 Uses the authenticated Merkle tree in trust/merkle-tree/ (scripts/authenticate_
 merkle_tree.py), re-running its authentication now against trust/euspa/, then
@@ -60,7 +61,12 @@ def main(argv=None) -> int:
     argv = argv or sys.argv[1:]
     cap = Path(argv[0])
     auth, rec = authenticated_tree()
-    if cap.is_file():                       # Android GnssLogger log
+    if cap.suffix == ".ubx":                # u-blox capture from scripts/capture_ubx.py
+        from tw.ubx_inav import captures_from_ubx, timed_pages
+        index = cap.with_suffix(".index.jsonl").read_text(encoding="utf-8").splitlines()
+        pages, stats = timed_pages(captures_from_ubx(cap.read_bytes(), index))
+        report_path = cap.with_suffix(".galileo-bound.json")
+    elif cap.is_file():                     # Android GnssLogger log
         pages, stats = pages_from_log(cap.read_text(encoding="utf-8", errors="replace"))
         report_path = cap.with_suffix(".galileo-bound.json")
     elif (cap / "gnsssdr-datagrams.bin").exists():   # GNSS-SDR / RTL-SDR capture

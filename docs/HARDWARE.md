@@ -58,6 +58,50 @@ What is known without a receiver (docs/SOURCES.md):
 - **Septentrio.** The mosaic-G5 T documents an SBF block, `GALRawINAV`, carrying the
   raw I/NAV bits, SVID and receiver GST. No adapter for it exists here yet.
 
+## The low-cost route
+
+A first physical-edge measurement does not need a timing receiver or an atomic
+clock. It needs a receiver that time-marks an edge on EXTINT and outputs Galileo
+pages, and an edge from a clock the receiver does not steer.
+
+| part | what | source of the facts |
+|---|---|---|
+| receiver | a **genuine** u-blox M8 module (e.g. a NEO-M8N board), firmware 3.01 | M8 protocol specification UBX-13003221 R28: TIM-TM2 on every M8 protocol version; RXM-SFRBX with Galileo from protocol 18 (firmware 3.01). NEO-M8 data sheet UBX-15031086 R14: EXTINT is pin 4, TIMEPULSE pin 3, time-pulse accuracy 30 ns RMS / 60 ns 99 %, logic high from 0.7 × VCC |
+| edge | a Cmod A7 running `hardware/cmod-a7-pps/` (its own 12 MHz crystal, divided to 1 PPS on DIP pin 1) | Digilent Cmod-A7-Master.xdc; design simulated in `tb_pps_gen.v` |
+| serial | the board's USB port, or a CP2102 USB-serial adapter on UART1 | — |
+
+**The purchase check comes first.** Many inexpensive "NEO-M8N" boards carry
+counterfeit or old parts stuck at firmware 2.01 (protocol 15), which has no Galileo
+and cannot be upgraded. On the day a board arrives, before anything else:
+
+    python scripts/setup_receiver.py --port COMn --baud 9600 --dry-run
+
+It polls UBX-MON-VER and refuses anything below protocol 18 by name. A refused board
+goes back to the seller.
+
+**Wiring.** Cmod A7 DIP pin 1 to the module's EXTINT (pin 4), grounds joined, both
+sides at 3.3 V logic. Inexpensive boards often bring out only power, TX, RX and the
+time-pulse LED; EXTINT may need a fine wire soldered to pin 4 of the module itself.
+
+**Then.**
+
+    python scripts/setup_receiver.py --port COMn --baud 9600 --out live/<label>.setup.json
+    python scripts/capture_ubx.py --port COMn --baud 9600 --seconds 1800 \
+        --out live/<label> --configure UART1 --receiver m8
+    python scripts/oscillator_report.py live/<label>.ubx --out live/<label>.oscillator.json
+    python scripts/galileo_bound.py ...      # the same capture's Galileo pages
+
+The first command enables Galileo (saved to battery-backed RAM only, then a reset;
+see `tw/ubx_config.py`). The report measures the crystal against the receiver: its
+frequency offset, the jitter of its edge, and its Allan deviation. Expect parts per
+million and tens of nanoseconds: an inexpensive crystal and a 30 ns receiver. The
+measurement is real either way, and an atomic reference later uses the same wiring,
+the same capture and the same report.
+
+What this route cannot give: a timing receiver's 5 ns time pulse, a quantisation-error
+correction, or an oscillator good enough to bound time through a GNSS outage longer
+than a few seconds. Those are what the full kit is for.
+
 ## Bring-up order
 
 1. Receiver alone, mode `PPS`: configure and capture in one step
