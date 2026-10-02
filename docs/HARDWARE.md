@@ -76,8 +76,19 @@ and cannot be upgraded. On the day a board arrives, before anything else:
 
     python scripts/setup_receiver.py --port COMn --baud 9600 --dry-run
 
-It polls UBX-MON-VER and refuses anything below protocol 18 by name. A refused board
-goes back to the seller.
+It polls UBX-MON-VER and refuses anything below protocol 18 by name.
+
+**If it reports firmware 2.01 (protocol 15).** A genuine NEO-M8N stores its firmware
+in flash and takes u-blox's standard-precision firmware 3.01; a counterfeit or ROM part
+does not, so the upgrade is also the genuineness test. The image is
+`UBX_M8_301_SPG.911f2b77b649eb90f4be14ce56717b49.bin` from u-blox (its MD5 is the hex in
+its name; release notes UBX-16000319 name it, FW ID `EXT CORE 3.01 (107900)`, for
+NEO-M8N). Install u-center (u-blox, Windows), connect, then *Tools → Firmware Update*:
+the image above, the `flash.xml` that ships with u-center as the flash information
+file, "enter safeboot before update" ticked. Keep the board powered until it finishes:
+a genuine module interrupted mid-write can only be recovered through its SAFEBOOT pin.
+Then run the `--dry-run` check again: `PROTVER=18.00` and `GAL` mean go ahead. If the
+update fails or the check still says 15, the part is not a genuine NEO-M8N.
 
 **Wiring.** Cmod A7 DIP pin 1 to the module's EXTINT (pin 4), grounds joined, both
 sides at 3.3 V logic. Inexpensive boards often bring out only power, TX, RX and the

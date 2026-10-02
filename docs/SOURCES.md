@@ -43,6 +43,11 @@ was checked. Nothing here is taken from a single source where a second exists.
   (`tw/ubx_inav.py` accepts 0 and 1). NEO-M8 data sheet UBX-15031086 R14 (sha256
   `5dc7a6c044873a04e2dcc08a7f54e9e7374c5c69dcce694054ac4730c81a04a5`): EXTINT pin 4,
   TIMEPULSE pin 3, time pulse 30 ns RMS / 60 ns 99 %, VIH 0.7 × VCC.
+- **M8 firmware 3.01** (docs/HARDWARE.md, upgrade): `UBX_M8_301_SPG.911f2b77b649eb90f4be14ce56717b49.bin`
+  from content.u-blox.com; its MD5 equals the hex in its name (checked), sha256
+  `c91968fbd3e593872933c22269597bf3eed75fda1d5f51eeb3fb44efe3092caf`; named, with FW ID
+  `EXT CORE 3.01 (107900)` and NEO-M8N among supported variants, by the release notes
+  UBX-16000319, which also state Galileo is off by default and enabled with UBX-CFG-GNSS.
 - **Cmod A7 pins** (`hardware/cmod-a7-pps/pps_gen.xdc`): Digilent `Cmod-A7-Master.xdc`,
   digilent-xdc commit `00a3404901f35aa9567b01ecb3f2c233b6efe9f4` (sha256
   `56568df3868ef359e938ef8defab33e1814fe4153435e99e13da9260d9db4eaf`): 12 MHz clock L17,
