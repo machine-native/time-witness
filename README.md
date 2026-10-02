@@ -38,8 +38,8 @@ reports `GALILEO_BOUND`:
 Each evidence file is also stamped with OpenTimestamps, which brackets the same bytes
 **between a Galileo key release and a public Bitcoin block** — neither bound depends on
 anything this project operates (`scripts/bracket.py`, reports in `*.bracket.json`). The
-first three are attested in Bitcoin block 969456; the epoch-8 capture's proof is
-pending until Bitcoin confirms it.
+first three are attested in Bitcoin block 969456, the epoch-8 capture from block
+969461.
 
 The verifier is checked against the official material, not against itself: every
 worked example in the Galileo OSNMA Receiver Guidelines (Annex A) reproduces exactly,

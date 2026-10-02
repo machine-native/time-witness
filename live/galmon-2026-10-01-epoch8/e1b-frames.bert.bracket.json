@@ -1,0 +1,34 @@
+{
+  "type": "TW-GALILEO-BITCOIN-BRACKET/v1",
+  "evidence": "e1b-frames.bert",
+  "evidence_sha256": "e44702b5f912dbf7946339690383db5e6b3a3204d5496722ce1f1b532f838882",
+  "lower": {
+    "source": "Galileo OSNMA TESLA key possession",
+    "gst_wn": 1414,
+    "gst_tow": 400380,
+    "usable_keys": 338,
+    "condition": "TESLA chain not revoked after the recording",
+    "utc": "2026-10-01T15:12:42+00:00",
+    "utc_unix_s": 1790867562,
+    "gst_minus_utc_s": 18,
+    "leap_source": "broadcast word type 6 (consistent, not authenticated offline)"
+  },
+  "upper": {
+    "source": "OpenTimestamps -> Bitcoin",
+    "proof": "e1b-frames.bert.ots",
+    "proof_commits_to_this_file": true,
+    "status": "BITCOIN",
+    "block_height": 969461,
+    "required_merkle_root": "24b94c9ce7ad49335dd6e455f4a2968ab0401a81c38b9f641a3a4414343a33a4",
+    "all_attestations": [
+      969461,
+      969471,
+      969474,
+      969490
+    ],
+    "block_hash": "000000000000000000005f8a71d4e3522fb9aa619f7362262a6db5b422ea7796",
+    "explorer_merkle_root_matches": true,
+    "header_time_metadata": "2026-10-01T15:31:35+00:00",
+    "header_time_caveat": "miner-asserted; consensus allows up to 2 h ahead of network time; not evidence"
+  }
+}
