@@ -145,13 +145,16 @@ def parse_mon_ver(payload: bytes) -> dict:
 
 
 def m8_galileo_capable(info: dict) -> tuple[bool, str]:
-    """Galileo E1 needs protocol >= 18 (firmware 3.01). Counterfeit and old M8N parts are
-    stuck at 2.01 (protocol 15) and cannot be upgraded; refuse them by name."""
+    """Galileo E1 needs protocol >= 18 (firmware 3.01). Older genuine NEO-M8N parts
+    (ordering code -0-10) ship with 2.01 and can be upgraded; counterfeits look the same
+    and cannot. Either way nothing is changed here: refuse by name, say what to try."""
     if info["protver"] is None:
         return False, "no PROTVER in MON-VER: cannot tell what this receiver is"
     if info["protver"] < (18, 0):
         return False, (f"protocol {info['protver'][0]}.{info['protver'][1]:02d} has no Galileo "
-                       "(firmware 3.01 / protocol 18 needed); old or counterfeit part")
+                       "(firmware 3.01 / protocol 18 needed). A genuine NEO-M8N has flash and "
+                       "can be upgraded to 3.01 with u-blox u-center; a ROM part or a "
+                       "counterfeit cannot, and the upgrade failing is the test")
     if not info["galileo"]:
         return False, "MON-VER does not list GAL among supported systems"
     return True, "ok"
